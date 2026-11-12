@@ -42,21 +42,52 @@ def udp_socket(bind=True):
     s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
     if bind:
         s.bind(('', PORT))
-        try:
-            s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
-                         struct.pack('4s4s', socket.inet_aton(GROUP), socket.inet_aton('0.0.0.0')))
-        except OSError:
-            pass
+        for ip in ['0.0.0.0'] + local_ipv4():   # join on every interface
+            try:
+                s.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+                             struct.pack('4s4s', socket.inet_aton(GROUP), socket.inet_aton(ip)))
+            except OSError:
+                pass
     return s
 
 
-def send_beacon(sock, text):
-    data = MAGIC + text.encode()
-    for dst in ((GROUP, PORT), ('255.255.255.255', PORT)):
+def local_ipv4():
+    """This computer's IPv4 addresses (best effort, standard library only)."""
+    addrs = {'127.0.0.1'}
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            addrs.add(info[4][0])
+    except OSError:
+        pass
+    for probe in ('192.0.2.1', '10.255.255.255', '172.31.255.255', '192.168.255.255'):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            sock.sendto(data, dst)
+            s.connect((probe, 9))
+            addrs.add(s.getsockname()[0])
         except OSError:
             pass
+        finally:
+            s.close()
+    addrs.discard('0.0.0.0')
+    return sorted(addrs)
+
+
+def send_beacon(sock, text):
+    """Multicast out of every interface (macOS only uses one otherwise), plus
+    subnet broadcasts for networks that drop multicast."""
+    data = MAGIC + text.encode()
+    for ip in local_ipv4():
+        try:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(ip))
+            sock.sendto(data, (GROUP, PORT))
+        except OSError:
+            pass
+        if not ip.startswith('127.'):
+            for bc in (ip.rsplit('.', 1)[0] + '.255', '255.255.255.255'):
+                try:
+                    sock.sendto(data, (bc, PORT))
+                except OSError:
+                    pass
 
 
 def discover(seconds=3.0):
@@ -107,7 +138,7 @@ def call(dev, op, body=None, pin=None, timeout=10):
             return e.code, {}
 
 
-def resolve(target, timeout=3.0):
+def resolve(target, timeout=5.0):
     """A name / id prefix from discovery, or HOST[:PORT] (asked directly)."""
     host, _, port = target.rpartition(':') if target.count(':') == 1 else (target, '', '')
     if host == "localhost" or all(c.isdigit() or c == "." for c in (host or target)) or "." in target:
@@ -460,7 +491,7 @@ def main():
     ap = argparse.ArgumentParser(description='WilkCast 1 sender and receiver.')
     sub = ap.add_subparsers(dest='cmd', required=True)
     p = sub.add_parser('discover', help='list receivers on this network')
-    p.add_argument('-t', type=float, default=3.0, help='seconds to listen (default 3)')
+    p.add_argument('-t', type=float, default=5.0, help='seconds to listen (default 5)')
     p.add_argument('--json', action='store_true')
     for name in ('info', 'status'):
         p = sub.add_parser(name)
