@@ -526,6 +526,14 @@ try:
 except BaseException:
     import traceback
     traceback.print_exc()
+    # say what happened to the players, and show the end of their logs
+    for d in sorted(os.listdir(WORK)):
+        log = os.path.join(WORK, d, 'log.txt')
+        if os.path.exists(log):
+            print('--- end of %s log ---' % d)
+            print(''.join(open(log, errors='replace').readlines()[-40:]))
+    for p in procs:
+        print('process', p.pid, 'exit code:', p.poll())
     FAIL += 1
     print('  FAIL the test script stopped early (see the traceback above)')
 finally:

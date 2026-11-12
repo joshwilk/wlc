@@ -112,6 +112,31 @@ jobs:
         run: |
           python3 tools-wlc/e2e.py "$PWD/build/VLC.app/Contents/MacOS/VLC" 2>&1 | tee build/e2e-mac.txt
 
+      - name: Show crash reports, if any
+        if: always()
+        continue-on-error: true
+        run: |
+          for f in $(ls -t ~/Library/Logs/DiagnosticReports/VLC* ~/Library/Logs/DiagnosticReports/WLC* 2>/dev/null | head -3); do
+            echo "=== $f"
+            python3 - "$f" <<'PY'
+          import json, sys
+          raw = open(sys.argv[1]).read()
+          head, _, body = raw.partition('\n')
+          try:
+              d = json.loads(body)
+          except ValueError:
+              print(raw[:6000]); sys.exit()
+          print('exception:', d.get('exception'), '| termination:', d.get('termination', {}).get('indicator'))
+          imgs = d.get('usedImages', [])
+          for t in d.get('threads', []):
+              if not t.get('triggered'):
+                  continue
+              for fr in t.get('frames', [])[:25]:
+                  img = imgs[fr['imageIndex']].get('name', '?') if fr.get('imageIndex', -1) < len(imgs) else '?'
+                  print('  %-28s %s +%s' % (img, fr.get('symbol', '?'), fr.get('symbolLocation', fr.get('imageOffset'))))
+          PY
+          done
+
       - name: Package WLC.app into a DMG
         run: |
           cd build
