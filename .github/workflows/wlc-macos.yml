@@ -24,13 +24,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # kernel = the macOS version VideoLAN's prebuilt libraries are named for
-          # (same values as VideoLAN's own CI in extras/ci/gitlab-ci.yml)
-          - { arch: aarch64, kernel: 19, job: macos-arm64,  runner: macos-15,       label: apple-silicon, optional: false }
-          - { arch: x86_64,  kernel: 18, job: macos-x86_64, runner: macos-15-intel, label: intel,         optional: true }
-        exclude:
-          - label: ${{ (github.event_name == 'workflow_dispatch' && !inputs.intel) && 'intel' || 'none' }}
+        # kernel = the macOS version VideoLAN's prebuilt libraries are named for
+        # (same values as VideoLAN's own CI in extras/ci/gitlab-ci.yml).
+        # Intel is built only when asked for (or for wlc-* tags).
+        include: ${{ fromJSON((github.event_name != 'workflow_dispatch' || inputs.intel) && '[{"arch":"aarch64","kernel":19,"job":"macos-arm64","runner":"macos-15","label":"apple-silicon","optional":false},{"arch":"x86_64","kernel":18,"job":"macos-x86_64","runner":"macos-15-intel","label":"intel","optional":true}]' || '[{"arch":"aarch64","kernel":19,"job":"macos-arm64","runner":"macos-15","label":"apple-silicon","optional":false}]') }}
     steps:
       - uses: actions/checkout@v4
 
