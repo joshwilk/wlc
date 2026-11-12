@@ -32,12 +32,22 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build tools from Homebrew
-        run: brew install autoconf automake libtool pkg-config gettext ffmpeg make || true
+        run: brew install autoconf automake libtool pkg-config gettext ffmpeg make zstd || true
+
+      - name: Reuse third-party libraries built by an earlier run
+        id: contribcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            contrib/vlc-contrib-*.tar.*
+          key: contribs-${{ matrix.arch }}-${{ hashFiles('contrib/src/**', 'tools-wlc/contrib-shas.txt') }}
 
       - name: Find VideoLAN's prebuilt third-party libraries
         run: |
           url=$(sh tools-wlc/find-prebuilt.sh ${{ matrix.job }} ${{ matrix.arch }}-apple-darwin${{ matrix.kernel }})
           echo "prebuilt: ${url:-none found, will build them from source}"
+          cached=$(ls contrib/vlc-contrib-*.tar.* 2>/dev/null | head -1)
+          if [ -n "$cached" ]; then url="file://$PWD/$cached"; echo "using libraries cached from an earlier run: $cached"; fi
           [ -n "$url" ] && echo "VLC_PREBUILT_CONTRIBS_URL=$url" >> "$GITHUB_ENV" || true
 
       - name: Build (prebuilt third-party libraries from VideoLAN, WLC from source)
@@ -61,6 +71,19 @@ jobs:
           rm -rf build contrib/*-apple-darwin* && mkdir build && cd build
           ../extras/package/macosx/build.sh -c -a ${{ matrix.arch }} -j "$(sysctl -n hw.ncpu)"
 
+      - name: Save the source-built libraries for the next run
+        if: steps.prebuilt.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          HOST=${{ matrix.arch }}-apple-darwin${{ matrix.kernel }}
+          cd contrib
+          OLD="$PWD/$HOST"
+          rm -rf tmp && mkdir tmp && cp -R "$HOST" tmp/
+          (cd "tmp/$HOST" && rm -rf share/man share/doc share/gtk-doc share/info man sbin etc \
+            && ../../src/change_prefix.sh "$OLD" @@CONTRIB_PREFIX@@)
+          tar -c -C tmp "$HOST/" | zstd --quiet --force --threads=0 -12 -c > "vlc-contrib-$HOST-wlc.tar.zst"
+          rm -rf tmp; ls -la vlc-contrib-*.tar.zst
+
       - name: Check the WLC pieces are in the app
         run: |
           cd build
@@ -69,6 +92,20 @@ jobs:
           test ! -d VLC.app/Contents/Frameworks/Sparkle.framework
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" VLC.app/Contents/Info.plist | grep -x io.github.joshwilk.wlc
           /usr/libexec/PlistBuddy -c "Print :CFBundleName" VLC.app/Contents/Info.plist | grep -x WLC
+
+      - name: Launch check
+        continue-on-error: true
+        run: |
+          APP="$PWD/build/VLC.app/Contents/MacOS/VLC"
+          "$APP" --version 2>&1 | head -3
+          echo "--- modules WLC needs:"
+          "$APP" -I dummy --list 2>/dev/null | grep -E " (wlc|wlceq|avcodec|mp4|mkv|gnutls|http|access_http|macosx) " || true
+          echo "--- 12 s headless run with the Control Center:"
+          ( "$APP" -I dummy --no-video --aout adummy --wlc-port 48999 -vv > /tmp/wlc-launch.txt 2>&1 & echo $! > /tmp/wlc.pid )
+          sleep 10; curl -s -m 5 http://127.0.0.1:48999/api/info || echo "(no answer from the Control Center)"
+          kill "$(cat /tmp/wlc.pid)" 2>/dev/null; sleep 1
+          grep -iE "wlc|error|warning: cannot|dlopen|symbol" /tmp/wlc-launch.txt | head -40
+          echo "--- last lines:"; tail -25 /tmp/wlc-launch.txt
 
       - name: End-to-end tests against the Mac build
         continue-on-error: true

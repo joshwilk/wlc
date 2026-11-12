@@ -92,6 +92,12 @@ def start(name, port, extra=()):
                 return c, home, p
         except Exception:
             time.sleep(0.2)
+    print('WLC did not start. Last lines of its log:')
+    try:
+        print(''.join(open(os.path.join(home, 'log.txt'), errors='replace').readlines()[-60:]))
+    except OSError as e:
+        print(e)
+    print('exit code:', p.poll())
     raise SystemExit('WLC did not start; see ' + home + '/log.txt')
 
 
