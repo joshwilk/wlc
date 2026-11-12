@@ -22,13 +22,19 @@ jobs:
         include:
           # kernel = the macOS version VideoLAN's prebuilt libraries are named for
           # (same values as VideoLAN's own CI in extras/ci/gitlab-ci.yml)
-          - { arch: aarch64, kernel: 19, runner: macos-15,       label: apple-silicon, optional: false }
-          - { arch: x86_64,  kernel: 18, runner: macos-15-intel, label: intel,         optional: true }
+          - { arch: aarch64, kernel: 19, job: macos-arm64,  runner: macos-15,       label: apple-silicon, optional: false }
+          - { arch: x86_64,  kernel: 18, job: macos-x86_64, runner: macos-15-intel, label: intel,         optional: true }
     steps:
       - uses: actions/checkout@v4
 
       - name: Build tools from Homebrew
-        run: brew install autoconf automake libtool pkg-config gettext ffmpeg || true
+        run: brew install autoconf automake libtool pkg-config gettext ffmpeg make || true
+
+      - name: Find VideoLAN's prebuilt third-party libraries
+        run: |
+          url=$(sh tools-wlc/find-prebuilt.sh ${{ matrix.job }} ${{ matrix.arch }}-apple-darwin${{ matrix.kernel }})
+          echo "prebuilt: ${url:-none found, will build them from source}"
+          [ -n "$url" ] && echo "VLC_PREBUILT_CONTRIBS_URL=$url" >> "$GITHUB_ENV" || true
 
       - name: Build (prebuilt third-party libraries from VideoLAN, WLC from source)
         id: prebuilt
@@ -44,6 +50,9 @@ jobs:
         env:
           VLC_FORCE_KERNELVERSION: ${{ matrix.kernel }}
         run: |
+          # Apple's make 3.81 breaks on parallel contrib builds; use GNU make 4
+          export PATH="$(brew --prefix make)/libexec/gnubin:$PATH"
+          make --version | head -1
           rm -rf build contrib/*-apple-darwin* && mkdir build && cd build
           ../extras/package/macosx/build.sh -c -a ${{ matrix.arch }} -j "$(sysctl -n hw.ncpu)"
 
