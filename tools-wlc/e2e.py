@@ -101,6 +101,15 @@ def start(name, port, extra=()):
     raise SystemExit('WLC did not start; see ' + home + '/log.txt')
 
 
+def settings_file(home):
+    """wlc.json lives in the player's configuration folder, which differs by system."""
+    for d in ('.config/vlc', 'Library/Preferences/io.github.joshwilk.wlc', 'Library/Preferences/org.videolan.vlc'):
+        f = os.path.join(home, d, 'wlc.json')
+        if os.path.exists(f):
+            return f
+    return None
+
+
 def wait(fn, secs=30, step=0.25):
     end = time.time() + secs
     while time.time() < end:
@@ -298,7 +307,8 @@ def main():
 
     print('Library and player')
     check('first run creates a PIN and id', len(infoA['pin']) == 6 and len(infoA['id']) == 32 and infoA['pin'] != '')
-    check('settings file is private (0600)', oct(os.stat(homeA + '/.config/vlc/wlc.json').st_mode & 0o777) == '0o600')
+    cfg = settings_file(homeA)
+    check('settings file is private (0600)', cfg is not None and oct(os.stat(cfg).st_mode & 0o777) == '0o600', cfg)
     check('refuses to share the whole disk', A.post('/api/roots', {'add': '/'})[0] == 400)
     check('add library folder', A.post('/api/roots', {'add': media})[0] == 200)
     lib = A.get('/api/library')[1]['items']
@@ -513,6 +523,11 @@ def main():
 
 try:
     main()
+except BaseException:
+    import traceback
+    traceback.print_exc()
+    FAIL += 1
+    print('  FAIL the test script stopped early (see the traceback above)')
 finally:
     for p in procs:
         try:
