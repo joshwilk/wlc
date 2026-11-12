@@ -112,6 +112,10 @@ def discover(seconds=3.0):
         d['ip'] = ip
         d.setdefault('base', '/cast/v1/')
         d.setdefault('kind', 'wlc')
+        old = found.get(d['id'])
+        # a device on this computer is also heard via loopback: keep its network address
+        if old and ip.startswith('127.') and not old['ip'].startswith('127.'):
+            continue
         found[d['id']] = d
     s.close()
     return found

@@ -328,9 +328,15 @@ static void peer_seen( intf_sys_t *sys, const char *id, const char *name,
                 memset( p, 0, sizeof(*p) );
                 sys->npeers++;
             }
+            /* A device on this same computer is heard both on the network
+             * and on the loopback interface; keep the network address, which
+             * is the one other devices (and media URLs) can use. */
+            const bool lo = !strncmp( ip, "127.", 4 );
+            const bool had_lan = p->ip[0] != '\0' && strncmp( p->ip, "127.", 4 );
             strlcpy( p->id, id, sizeof(p->id) );
             strlcpy( p->name, name && name[0] ? name : "WLC", sizeof(p->name) );
-            strlcpy( p->ip, ip, sizeof(p->ip) );
+            if( !(lo && had_lan) )
+                strlcpy( p->ip, ip, sizeof(p->ip) );
             strlcpy( p->auth, auth ? auth : "pin", sizeof(p->auth) );
             strlcpy( p->base, base_ok( base ) ? base : BASE_V1, sizeof(p->base) );
             strlcpy( p->kind, kind && kind[0] ? kind : "wlc", sizeof(p->kind) );
