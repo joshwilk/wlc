@@ -4,6 +4,11 @@ name: WLC for macOS
 
 on:
   workflow_dispatch:
+    inputs:
+      intel:
+        description: Also build for Intel Macs (doubles the build minutes)
+        type: boolean
+        default: false
   push:
     tags: ['wlc-*']
 
@@ -24,6 +29,8 @@ jobs:
           # (same values as VideoLAN's own CI in extras/ci/gitlab-ci.yml)
           - { arch: aarch64, kernel: 19, job: macos-arm64,  runner: macos-15,       label: apple-silicon, optional: false }
           - { arch: x86_64,  kernel: 18, job: macos-x86_64, runner: macos-15-intel, label: intel,         optional: true }
+        exclude:
+          - label: ${{ (github.event_name == 'workflow_dispatch' && !inputs.intel) && 'intel' || 'none' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,9 +57,10 @@ jobs:
         env:
           VLC_FORCE_KERNELVERSION: ${{ matrix.kernel }}
         run: |
-          # Apple's make 3.81 breaks on parallel contrib builds; use GNU make 4
-          export PATH="$(brew --prefix make)/libexec/gnubin:$PATH"
-          make --version | head -1
+          # Apple's make 3.81 breaks on parallel contrib builds; use GNU make 4.
+          # build.sh resets PATH but keeps $VLC_PATH (as VideoLAN's CI does).
+          export VLC_PATH="$(brew --prefix make)/libexec/gnubin"
+          "$VLC_PATH/make" --version | head -1
           rm -rf build contrib/*-apple-darwin* && mkdir build && cd build
           ../extras/package/macosx/build.sh -c -a ${{ matrix.arch }} -j "$(sysctl -n hw.ncpu)"
 
