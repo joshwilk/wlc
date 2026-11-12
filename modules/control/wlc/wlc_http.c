@@ -987,6 +987,12 @@ static void *worker( void *data )
         int fd = vlc_accept( sys->lfd, (struct sockaddr *)&peer, &len, false );
         if( fd == -1 )
             continue;
+        /* On macOS and the BSDs an accepted socket inherits O_NONBLOCK from
+         * the listening one (Linux's accept4 does not), and recv() would then
+         * fail with EAGAIN before the request has arrived. Serve it blocking. */
+        int fl = fcntl( fd, F_GETFL );
+        if( fl != -1 && (fl & O_NONBLOCK) )
+            fcntl( fd, F_SETFL, fl & ~O_NONBLOCK );
         if( peer.sin_family == AF_INET )
             serve( sys, fd, &peer );
         shutdown( fd, SHUT_RDWR );
