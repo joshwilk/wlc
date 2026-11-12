@@ -1,0 +1,65 @@
+# Builds WLC.app for macOS from this fork and uploads a DMG.
+# Run it from the Actions tab ("Run workflow"), or push a tag named wlc-*.
+name: WLC for macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['wlc-*']
+
+env:
+  WLC_VERSION: "0.2.0"
+
+jobs:
+  build:
+    name: WLC.app (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: ${{ matrix.optional }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: aarch64, runner: macos-15,       label: apple-silicon, optional: false }
+          - { arch: x86_64,  runner: macos-15-intel, label: intel,         optional: true }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build tools from Homebrew
+        run: brew install autoconf automake libtool pkg-config gettext ffmpeg || true
+
+      - name: Build (prebuilt third-party libraries from VideoLAN, WLC from source)
+        run: |
+          mkdir build && cd build
+          ../extras/package/macosx/build.sh -a ${{ matrix.arch }} -j "$(sysctl -n hw.ncpu)"
+
+      - name: Check the WLC pieces are in the app
+        run: |
+          cd build
+          test -f VLC.app/Contents/MacOS/plugins/libwlc_plugin.dylib
+          test -f VLC.app/Contents/MacOS/plugins/libwlceq_plugin.dylib
+          test ! -d VLC.app/Contents/Frameworks/Sparkle.framework
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" VLC.app/Contents/Info.plist | grep -x io.github.joshwilk.wlc
+          /usr/libexec/PlistBuddy -c "Print :CFBundleName" VLC.app/Contents/Info.plist | grep -x WLC
+
+      - name: End-to-end tests against the Mac build
+        continue-on-error: true
+        run: |
+          python3 tools-wlc/e2e.py "$PWD/build/VLC.app/Contents/MacOS/VLC" 2>&1 | tee build/e2e-mac.txt
+
+      - name: Package WLC.app into a DMG
+        run: |
+          cd build
+          mv VLC.app WLC.app
+          codesign --force --deep --sign - WLC.app
+          mkdir dmg && cp -Rp WLC.app dmg/ && ln -s /Applications dmg/Applications
+          cp ../README-WLC.md dmg/"Read Me.md"
+          hdiutil create -volname "WLC ${WLC_VERSION}" -srcfolder dmg -ov -format UDZO \
+            "WLC-${WLC_VERSION}-mac-${{ matrix.label }}.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WLC-${{ env.WLC_VERSION }}-mac-${{ matrix.label }}
+          path: |
+            build/WLC-*.dmg
+            build/e2e-mac.txt

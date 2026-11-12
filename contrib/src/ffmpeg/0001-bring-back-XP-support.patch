@@ -1,0 +1,47 @@
+From 2ffa952b2a6db36269c9b1c90b6e4269ab8c6232 Mon Sep 17 00:00:00 2001
+From: Steve Lhomme <robux4@ycbcr.xyz>
+Date: Fri, 3 Apr 2026 14:29:37 +0200
+Subject: [PATCH] bring back XP support
+
+Force bcrypt not to be used as it's not available on XP.
+
+It works via a win32 pthread instead of w32thread. This works by using
+--disable-w32threads --enable-pthreads --extra-libs="-lpthread"
+
+Other misdetected features mean you need this flags for proper XP support
+--disable-mediafoundation --disable-amf --disable-schannel
+---
+ configure         | 12 ++++++------
+ libavformat/udp.c |  2 ++
+ 2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/configure b/configure
+index ba5793b2ff..ba7cb1cabd 100755
+--- a/configure
++++ b/configure
+@@ -6336,7 +6336,7 @@ for LATOMIC in "-latomic" ""; do
+ done
+ 
+ check_lib advapi32 "windows.h"            RegCloseKey          -ladvapi32
+-check_lib bcrypt   "windows.h bcrypt.h"   BCryptGenRandom      -lbcrypt &&
++check_lib bcrypt   "windows.h bcrypt.h DISABLE_BCRYPT"   BCryptGenRandom      -lbcrypt &&
+     check_cpp_condition bcrypt bcrypt.h "defined BCRYPT_RNG_ALGORITHM"
+ check_lib ole32    "windows.h"            CoTaskMemFree        -lole32
+ check_lib shell32  "windows.h shellapi.h" CommandLineToArgvW   -lshell32
+diff --git a/libavformat/udp.c b/libavformat/udp.c
+index 3b36a4a094..760fc0b3d7 100644
+--- a/libavformat/udp.c
++++ b/libavformat/udp.c
+@@ -1122,7 +1122,9 @@ static int udp_close(URLContext *h)
+              * the socket and abort pending IO, subsequent recvfrom() calls
+              * will fail with WSAESHUTDOWN causing the thread to exit. */
+             shutdown(s->udp_fd, SD_RECEIVE);
++#if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0600
+             CancelIoEx((HANDLE)(SOCKET)s->udp_fd, NULL);
++#endif
+ #else
+             pthread_cancel(s->circular_buffer_thread);
+ #endif
+-- 
+2.52.0.windows.1
+

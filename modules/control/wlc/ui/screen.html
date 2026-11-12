@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLC Screen</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M18 8h28l5 46H13z' fill='%23ff6b00'/%3E%3Cpath d='M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z' fill='%23f4f4f0'/%3E%3C/svg%3E">
+<style>
+:root{--orange:#ff6b00;--orange2:#ff9440;--mute:#9aa3b2;--line:#363b45}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#000;color:#eef0f3;font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+.hazard{position:fixed;left:0;right:0;height:8px;background:repeating-linear-gradient(135deg,var(--orange) 0 18px,#111 18px 36px);z-index:5}
+.hazard.top{top:0}.hazard.bot{bottom:0}
+video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
+.pane{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:40px;text-align:center;background:radial-gradient(ellipse at center,#1d2025 0,#000 75%);z-index:3}
+.pane.hide,.hide{display:none!important}
+h1{margin:0;font:800 clamp(28px,6vw,64px)/1.05 Impact,"Arial Narrow Bold",system-ui;letter-spacing:.08em;text-transform:uppercase}
+.sub{color:var(--mute);font-size:clamp(14px,2.2vw,22px)}
+.name{color:var(--orange2)}
+input{font:inherit;font-size:20px;background:#111316;color:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;width:min(420px,90vw);text-align:center}
+input:focus,button:focus-visible{outline:3px solid var(--orange2);outline-offset:2px}
+button{font:inherit;font-size:20px;font-weight:700;cursor:pointer;border-radius:10px;padding:12px 28px;border:0;background:var(--orange);color:#160a00}
+button.ghost{background:transparent;color:#eef0f3;border:1px solid var(--line);font-size:15px;padding:8px 16px}
+.err{color:#ff5a5c;min-height:1.4em}
+.barrel{width:clamp(70px,14vw,140px);height:auto}
+#osd{position:fixed;left:0;right:0;bottom:0;padding:26px 34px 30px;background:linear-gradient(transparent,rgba(0,0,0,.85));z-index:4;transition:opacity .4s}
+#osd.fade{opacity:0}
+#osd .t{font-size:clamp(18px,3vw,30px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#osd .m{color:var(--mute);margin-top:4px}
+#bar{height:6px;background:#333;border-radius:3px;margin-top:10px;overflow:hidden}
+#bar i{display:block;height:100%;width:0;background:var(--orange)}
+#tap{position:fixed;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);font-size:28px;font-weight:700}
+.audio-art{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1;background:radial-gradient(ellipse at center,#24180f 0,#000 70%)}
+</style>
+</head>
+<body>
+<div class="hazard top"></div><div class="hazard bot"></div>
+<video id="v" playsinline preload="auto"></video>
+<div class="audio-art hide" id="art"><svg class="barrel" viewBox="0 0 64 64"><path d="M18 8h28l5 46H13z" fill="#ff6b00"/><path d="M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z" fill="#f4f4f0"/><ellipse cx="32" cy="8" rx="14" ry="3" fill="#c94f00"/><rect x="7" y="53" width="50" height="7" rx="3" fill="#111" stroke="#333"/></svg><div class="sub" id="art-t"></div></div>
+
+<div class="pane" id="setup">
+  <svg class="barrel" viewBox="0 0 64 64"><path d="M18 8h28l5 46H13z" fill="#ff6b00"/><path d="M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z" fill="#f4f4f0"/><ellipse cx="32" cy="8" rx="14" ry="3" fill="#c94f00"/><rect x="7" y="53" width="50" height="7" rx="3" fill="#111" stroke="#333"/></svg>
+  <h1>WLC Screen</h1>
+  <div class="sub">Make this browser a WilkCast screen. Anything on your network running WLC can then cast to it.</div>
+  <input id="in-name" type="text" maxlength="60" placeholder="Name, e.g. Living room TV">
+  <input id="in-pin" type="password" inputmode="numeric" maxlength="12" placeholder="PIN from WLC (Network &amp; Cast)">
+  <button id="go">Start screen</button>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="pane hide" id="idle">
+  <svg class="barrel" viewBox="0 0 64 64"><path d="M18 8h28l5 46H13z" fill="#ff6b00"/><path d="M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z" fill="#f4f4f0"/><ellipse cx="32" cy="8" rx="14" ry="3" fill="#c94f00"/><rect x="7" y="53" width="50" height="7" rx="3" fill="#111" stroke="#333"/></svg>
+  <h1 class="name" id="idle-name"></h1>
+  <div class="sub" id="idle-sub">Ready for WilkCast</div>
+  <div class="sub" id="idle-err" style="color:#ff5a5c"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="ghost" id="bt-full">Full screen</button>
+    <button class="ghost" id="bt-rename">Rename</button>
+  </div>
+</div>
+
+<div id="osd" class="fade"><div class="t" id="osd-t"></div><div class="m" id="osd-m"></div><div id="bar"><i id="bar-i"></i></div></div>
+<div id="tap" class="hide">Tap anywhere to start playback</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const v = $('v');
+const store = { get(k) { try { return localStorage.getItem('wlc-screen-' + k); } catch (e) { return null; } },
+                set(k, x) { try { localStorage.setItem('wlc-screen-' + k, x); } catch (e) {} } };
+const S = { id: store.get('id'), name: store.get('name') || '', host: '', queue: [], idx: -1, title: '', error: '', vol: 1, loaded: false, gesture: false };
+
+async function api(path, body) {
+  const r = await fetch(path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const e = new Error(j.error || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j;
+}
+
+function show(which) {
+  $('setup').classList.toggle('hide', which !== 'setup');
+  $('idle').classList.toggle('hide', which !== 'idle');
+}
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+const isAudio = url => /\.(mp3|m4a|aac|flac|ogg|oga|opus|wav|aiff?|wma|mka|m4b)(\?|$)/i.test(url);
+
+let osdTimer = null;
+function osd(hold) {
+  $('osd-t').textContent = S.title || '';
+  $('osd-m').textContent = (v.paused ? 'Paused · ' : '') + fmt(v.currentTime) + ' / ' + fmt(v.duration) + (S.queue.length > 1 ? ' · ' + (S.idx + 1) + ' of ' + S.queue.length : '');
+  $('bar-i').style.width = (v.duration ? 100 * v.currentTime / v.duration : 0) + '%';
+  $('osd').classList.remove('fade');
+  clearTimeout(osdTimer);
+  if (!hold) osdTimer = setTimeout(() => $('osd').classList.add('fade'), 3500);
+}
+
+/* ---------- playback ---------- */
+function playIndex(i, position) {
+  if (i < 0 || i >= S.queue.length) { stop(); return; }
+  S.idx = i; const it = S.queue[i];
+  S.title = it.title || decodeURIComponent(it.url.split('/').pop().split('?')[0]);
+  S.error = ''; S.loaded = true;
+  v.src = it.url;
+  const audio = isAudio(it.url);
+  $('art').classList.toggle('hide', !audio); $('art-t').textContent = S.title;
+  show('none');
+  if (position > 0) v.addEventListener('loadedmetadata', () => { try { v.currentTime = position; } catch (e) {} }, { once: true });
+  start(); osd();
+}
+function start() {
+  const p = v.play();
+  if (p && p.catch) p.catch(e => {
+    if (e.name === 'NotAllowedError') { $('tap').classList.remove('hide'); S.error = 'tap the screen to allow playback'; }
+  });
+}
+function stop() {
+  v.pause(); v.removeAttribute('src'); v.load();
+  S.loaded = false; S.queue = []; S.idx = -1; S.title = '';
+  $('art').classList.add('hide'); $('osd').classList.add('fade');
+  show('idle');
+}
+$('tap').addEventListener('click', () => { $('tap').classList.add('hide'); S.error = ''; start(); });
+v.addEventListener('ended', () => { if (S.idx + 1 < S.queue.length) playIndex(S.idx + 1, 0); else stop(); });
+v.addEventListener('error', () => {
+  if (!S.loaded) return;
+  const ext = (S.queue[S.idx] && S.queue[S.idx].url.split('?')[0].split('.').pop() || '').toUpperCase();
+  S.error = 'this browser cannot play ' + (ext ? ext + ' files' : 'that file') + '; MP4 (H.264), WebM, MP3, AAC and WAV play everywhere';
+  $('idle-err').textContent = 'Could not play "' + S.title + '": ' + S.error + '.';
+  if (S.idx + 1 < S.queue.length) setTimeout(() => playIndex(S.idx + 1, 0), 1500);
+  else { const err = S.error; stop(); S.error = err; }
+});
+['play', 'pause', 'seeked'].forEach(ev => v.addEventListener(ev, () => { if (S.loaded) osd(v.paused); }));
+
+function run(c) {
+  const val = Number(c.value) || 0;
+  switch (c.cmd) {
+    case 'load':
+      S.queue = [{ url: c.url, title: c.title }].concat(c.queue || []);
+      $('idle-err').textContent = '';
+      playIndex(0, Number(c.position) || 0); break;
+    case 'play': case 'resume': if (S.loaded) start(); break;
+    case 'pause': v.pause(); break;
+    case 'toggle': if (S.loaded) { if (v.paused) start(); else v.pause(); } break;
+    case 'stop': stop(); break;
+    case 'seek': if (S.loaded) v.currentTime = Math.max(0, val); break;
+    case 'seekrel': if (S.loaded) v.currentTime = Math.max(0, v.currentTime + val); break;
+    case 'volume': S.vol = Math.max(0, Math.min(2, val)); v.volume = Math.min(1, S.vol); break;
+    case 'next': if (S.idx + 1 < S.queue.length) playIndex(S.idx + 1, 0); break;
+    case 'prev': if (v.currentTime > 3 || S.idx === 0) v.currentTime = 0; else playIndex(S.idx - 1, 0); break;
+  }
+  if (S.loaded && c.cmd !== 'load') osd(v.paused);
+}
+
+function status() {
+  let state = 'stopped';
+  if (S.loaded) state = v.error ? 'error' : (v.readyState < 2 && !v.paused) ? 'opening' : v.paused ? 'paused' : 'playing';
+  else if (S.error) state = 'error';
+  return { state, time: v.currentTime || 0, length: isFinite(v.duration) ? v.duration : 0, volume: S.vol, title: S.title, error: S.error };
+}
+
+/* ---------- talking to WLC ---------- */
+let syncing = false, failures = 0;
+async function sync() {
+  if (syncing || !S.id) return; syncing = true;
+  try {
+    const r = await api('/api/screen/sync', { id: S.id, status: status() });
+    failures = 0; $('idle-sub').textContent = 'Ready for WilkCast · connected to ' + (S.host || location.host);
+    if (r.name && r.name !== S.name) { S.name = r.name; $('idle-name').textContent = r.name; }
+    (r.cmds || []).forEach(run);
+  } catch (e) {
+    if (e.status === 401) { S.id = null; show('setup'); $('err').textContent = 'Enter the PIN again (WLC may have made a new one).'; }
+    else if (e.status === 404) { try { await register(); } catch (e2) {} }
+    else if (++failures > 3) $('idle-sub').textContent = 'Lost touch with WLC; retrying…';
+  } finally { syncing = false; }
+}
+async function register() {
+  const r = await api('/api/screen/register', { id: S.id || '', name: S.name });
+  S.id = r.id; S.name = r.name; S.host = r.host || '';
+  store.set('id', S.id); store.set('name', S.name);
+  $('idle-name').textContent = S.name;
+  document.title = S.name + ' · WLC Screen';
+}
+async function begin() {
+  $('err').textContent = '';
+  const name = $('in-name').value.trim(), pin = $('in-pin').value.trim();
+  if (name) S.name = name;
+  try {
+    const info = await api('/api/info');
+    if (!info.authed) {
+      if (!pin) { $('err').textContent = 'Enter the PIN shown in WLC under Network & Cast.'; $('in-pin').focus(); return; }
+      await api('/api/login', { pin });
+    }
+    S.gesture = true;
+    await register();
+    show('idle'); sync();
+  } catch (e) { $('err').textContent = e.status === 401 ? 'Wrong PIN (or locked for a minute after five tries).' : e.message; }
+}
+$('go').addEventListener('click', begin);
+$('in-pin').addEventListener('keydown', e => { if (e.key === 'Enter') begin(); });
+$('in-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('in-pin').focus(); });
+$('bt-full').addEventListener('click', () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen || (() => {})).call(d); });
+$('bt-rename').addEventListener('click', async () => { const n = prompt('Name for this screen', S.name); if (n && n.trim()) { S.name = n.trim(); try { await register(); } catch (e) {} } });
+document.addEventListener('dblclick', () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); });
+document.addEventListener('keydown', e => {   /* TV remotes send arrow keys and Enter */
+  if (!S.loaded || e.target.tagName === 'INPUT') return;
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'MediaPlayPause') { run({ cmd: 'toggle' }); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') run({ cmd: 'seekrel', value: 30 });
+  else if (e.key === 'ArrowLeft') run({ cmd: 'seekrel', value: -10 });
+  else if (e.key === 'MediaTrackNext') run({ cmd: 'next' });
+  else if (e.key === 'MediaTrackPrevious') run({ cmd: 'prev' });
+});
+document.addEventListener('mousemove', () => { if (S.loaded) osd(v.paused); });
+
+(async function boot() {
+  $('in-name').value = S.name;
+  try {
+    const info = await api('/api/info');
+    if (info.authed && S.id) { await register(); show('idle'); }
+    else { if (!S.name) $('in-name').value = ''; show('setup'); (S.name ? $('in-pin') : $('in-name')).focus(); }
+  } catch (e) { show('setup'); $('err').textContent = 'WLC is not answering at ' + location.host + '.'; }
+  setInterval(sync, 500);
+  setInterval(() => { if (S.loaded && !$('osd').classList.contains('fade')) osd(v.paused); }, 1000);
+})();
+</script>
+</body>
+</html>

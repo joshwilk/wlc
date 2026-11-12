@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WLC Control Center</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M18 8h28l5 46H13z' fill='%23ff6b00'/%3E%3Cpath d='M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z' fill='%23f4f4f0'/%3E%3Crect x='7' y='53' width='50' height='7' rx='3' fill='%23111'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#141619;--panel:#1d2025;--panel2:#272b32;--line:#363b45;--text:#eef0f3;--mute:#9aa3b2;
+--orange:#ff6b00;--orange2:#ff9440;--white:#f4f4f0;--ok:#3ecf7a;--bad:#ff5a5c;--r:10px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:7px 12px}
+button:hover{border-color:var(--orange)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--orange);border-color:var(--orange);color:#160a00;font-weight:700}
+button.ghost{background:transparent}
+button.small{padding:3px 8px;font-size:12px}
+input[type=text],input[type=number],input[type=password],input[type=search],select{background:#111316;border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--orange2);outline-offset:1px}
+input[type=range]{accent-color:var(--orange)}
+input[type=checkbox]{accent-color:var(--orange);width:16px;height:16px}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+h2{font-size:18px}h3{font-size:13px;color:var(--mute)}
+.hazard{height:6px;background:repeating-linear-gradient(135deg,var(--orange) 0 14px,#111 14px 28px);flex:none}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+header .brand{display:flex;align-items:center;gap:10px}
+header .brand b{font:800 20px/1 Impact,"Arial Narrow Bold",system-ui;letter-spacing:.12em}
+header .brand span{color:var(--mute);font-size:12px}
+header .sp{flex:1}
+.pill{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--mute)}
+#wrap{flex:1;display:flex;min-height:0}
+nav{width:190px;background:var(--panel);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:4px;flex:none;overflow:auto}
+nav button{display:flex;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:10px 12px;border-radius:8px;color:var(--mute);font-weight:600}
+nav button.on{background:var(--panel2);color:var(--text);box-shadow:inset 3px 0 0 var(--orange)}
+nav button svg{width:18px;height:18px;flex:none}
+main{flex:1;overflow:auto;padding:18px 20px 30px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:10px}
+.grow{flex:1;min-width:0}
+.mute{color:var(--mute)}.small{font-size:12px}.err{color:var(--bad)}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.gap{height:14px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--mute);font-weight:600;position:sticky;top:0;background:var(--panel)}
+td.name{word-break:break-word}
+tr.cur td{color:var(--orange2);font-weight:600}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--panel2)}
+.scroll{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;display:flex;flex-direction:column}
+.tile:hover{border-color:var(--orange)}
+.tile .art{aspect-ratio:1;background:#0e0f11 center/cover no-repeat;display:grid;place-items:center;color:#4a505c}
+.tile .art svg{width:46%;height:46%}
+.tile .cap{padding:8px 10px}.tile .cap b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:6px 12px;color:var(--mute)}
+.seg button.on{background:var(--orange);color:#160a00;font-weight:700}
+footer{flex:none;background:var(--panel);border-top:1px solid var(--line);padding:8px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+footer .now{min-width:140px;flex:1 1 180px;overflow:hidden}
+footer .now b,footer .now span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+footer .tp button{width:38px;height:38px;padding:0;border-radius:50%;display:inline-grid;place-items:center}
+footer .tp button.big{width:46px;height:46px;background:var(--orange);border-color:var(--orange);color:#160a00}
+footer .tp svg{width:18px;height:18px}
+footer .seek{flex:3 1 260px;display:flex;align-items:center;gap:8px}
+footer .seek input{flex:1}
+footer .vol{display:flex;align-items:center;gap:6px}
+footer .vol input{width:90px}
+.eq-sliders{display:flex;gap:2px;overflow-x:auto;padding:6px 0}
+.eq-band{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:26px}
+.eq-band input{writing-mode:vertical-lr;direction:rtl;height:170px;width:22px}
+.eq-band span{font-size:10px;color:var(--mute)}
+.eq-band b{font-size:10px;font-weight:600}
+canvas{width:100%;display:block;border-radius:8px;background:#0e0f11;border:1px solid var(--line)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:20;padding:14px}
+.modal>.card{width:min(680px,100%);max-height:90vh;display:flex;flex-direction:column;gap:10px}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#000;border:1px solid var(--orange);padding:9px 14px;border-radius:8px;z-index:30;max-width:90vw}
+.bar{height:8px;background:#0e0f11;border-radius:99px;overflow:hidden;min-width:90px}
+.bar>i{display:block;height:100%;background:var(--orange)}
+.chg{color:var(--orange2)}.clash{color:var(--bad);font-weight:700}
+.rule{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rule b{min-width:96px}
+.big-pin{font:800 30px/1 ui-monospace,Menlo,monospace;letter-spacing:.18em;color:var(--orange2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#local-player{position:fixed;right:14px;bottom:84px;width:min(420px,92vw);z-index:15}
+#local-player video,#local-player audio{width:100%;border-radius:8px;background:#000;max-height:50vh}
+@media (max-width:820px){
+ #wrap{flex-direction:column}
+ nav{width:auto;flex-direction:row;border-right:0;border-bottom:1px solid var(--line);padding:6px;overflow-x:auto}
+ nav button{white-space:nowrap;padding:8px 10px}nav button.on{box-shadow:inset 0 -3px 0 var(--orange)}
+ main{padding:12px}.two{grid-template-columns:1fr}
+ header .brand span{display:none}
+}
+</style>
+</head>
+<body>
+<div class="hazard"></div>
+<header>
+ <div class="brand">
+  <svg width="34" height="34" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28l5 46H13z" fill="#ff6b00"/><path d="M16.9 18h30.2l.9 8H16zM15 36h34l.9 8H14.1z" fill="#f4f4f0"/><ellipse cx="32" cy="8" rx="14" ry="3" fill="#c94f00"/><rect x="7" y="53" width="50" height="7" rx="3" fill="#111" stroke="#333"/></svg>
+  <div><b>WLC</b><br><span>Wilkinson LAN Client · Control Center</span></div>
+ </div>
+ <div class="sp"></div>
+ <span class="pill" id="who"></span>
+</header>
+<div id="wrap">
+ <nav id="nav"></nav>
+ <main id="main"></main>
+</div>
+<footer id="foot">
+ <div class="now"><b id="np-title">Nothing playing</b><span class="mute small" id="np-sub"></span></div>
+ <div class="tp row" style="gap:6px">
+  <button title="Previous" data-cmd="prev"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+  <button class="big" title="Play / pause" data-cmd="toggle" id="bt-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></button>
+  <button title="Stop" data-cmd="stop"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg></button>
+  <button title="Next" data-cmd="next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+ </div>
+ <div class="seek"><span class="small mute" id="t-cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek"><span class="small mute" id="t-len">0:00</span></div>
+ <div class="vol"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 8a5 5 0 010 8" fill="none" stroke="currentColor" stroke-width="2"/></svg><input type="range" id="vol" min="0" max="150" value="100" aria-label="Volume"></div>
+ <button id="bt-cast" title="Cast to another WLC">Cast</button>
+</footer>
+<div id="local-player" hidden></div>
+<script>
+'use strict';
+/* ---------- tiny helpers ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+{ // let replaceChildren take arrays and skip empty entries, like h() does
+  const rc = Element.prototype.replaceChildren;
+  Element.prototype.replaceChildren = function (...kids) { return rc.apply(this, kids.flat(9).filter(k => k != null && k !== false)); };
+}
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const k in (props || {})) {
+    const v = props[k];
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'html') e.innerHTML = v;
+    else if (k in e && k !== 'list') e[k] = v;
+    else e.setAttribute(k, v);
+  }
+  for (const kid of kids.flat(9)) if (kid != null && kid !== false) e.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return e;
+}
+async function call(method, path, body) {
+  const r = await fetch(path, { method, credentials: 'same-origin',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const err = new Error((j && j.error) || ('HTTP ' + r.status)); err.status = r.status; throw err; }
+  return j;
+}
+const GET = p => call('GET', p), POST = (p, b) => call('POST', p, b || {});
+const q = o => Object.entries(o).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+function toast(msg, bad) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = h('div', { class: 'toast' + (bad ? ' err' : ''), role: 'status' }, msg);
+  document.body.append(t); setTimeout(() => t.remove(), bad ? 6000 : 2600);
+}
+const fail = e => toast(e.message || String(e), true);
+function fmtTime(s) { s = Math.max(0, Math.floor(s || 0)); const hh = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  return (hh ? hh + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); }
+function fmtSize(n) { if (!n) return ''; const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + ' ' + u[i]; }
+const base = p => p.slice(p.lastIndexOf('/') + 1);
+const dirOf = p => p.slice(0, p.lastIndexOf('/')) || '/';
+const natCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
+const ICON = {
+  play: 'M7 4v16l13-8z', lib: 'M4 4h6v16H4zM12 4h4v16h-4zM18 6l3 .8-3.2 13-3-.8z', eq: 'M5 4h2v7H5zM5 15h2v5H5zM3 11h6v4H3zM11 4h2v3h-2zM11 11h2v9h-2zM9 7h6v4H9zM17 4h2v9h-2zM17 17h2v3h-2zM15 13h6v4h-6z',
+  conv: 'M4 7h11l-3-3 1.4-1.4L19.8 8l-6.4 5.4L12 12l3-3H4zM20 17H9l3 3-1.4 1.4L4.2 16l6.4-5.4L12 12l-3 3h11z', ren: 'M3 17.2V21h3.8L18 9.8 14.2 6zM20.7 7a1 1 0 000-1.4l-2.3-2.3a1 1 0 00-1.4 0L15.2 5 19 8.8z',
+  net: 'M3 18a3 3 0 013 3H3zM3 14a7 7 0 017 7H8a5 5 0 00-5-5zM3 10a11 11 0 0111 11h-2a9 9 0 00-9-9zM3 5h18v14h-5v-2h3V7H5v1H3z',
+  folder: 'M3 6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z', note: 'M9 4v11.2A3.5 3.5 0 1011 18V8h7V4z', film: 'M4 4h16v16H4zM6 6v2h2V6zm0 5v2h2v-2zm0 5v2h2v-2zm10-10v2h2V6zm0 5v2h2v-2zm0 5v2h2v-2z', img: 'M4 5h16v14H4zm2 12h12l-4-6-3 4-2-2z'
+};
+const icon = (n) => h('span', { html: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="' + ICON[n] + '"/></svg>', style: 'display:contents' });
+
+/* ---------- state ---------- */
+const S = { info: null, st: null, tab: 'now', lib: null, libKind: 'all', libQ: '', libFolder: null, ui: {}, seeking: false,
+  eq: null, conv: { files: [] }, ren: { dir: null, files: [], rules: [], sort: 'name', meta: {} }, peers: [] };
+const pins = JSON.parse(localStorage.getItem('wlc-pins') || '{}');
+const savePins = () => localStorage.setItem('wlc-pins', JSON.stringify(pins));
+
+/* ---------- player bar ---------- */
+async function cmd(c, extra) { try { S.st = await POST('/api/cmd', Object.assign({ cmd: c }, extra)); paintBar(); } catch (e) { fail(e); } }
+function paintBar() {
+  const s = S.st; if (!s) return;
+  $('#np-title').textContent = s.title || (s.state === 'stopped' ? 'Nothing playing' : '…');
+  $('#np-sub').textContent = [s.artist, s.album].filter(Boolean).join(' · ') || (s.state !== 'stopped' ? s.state : '');
+  $('#bt-play').firstChild.innerHTML = s.state === 'playing' ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+  $('#t-cur').textContent = fmtTime(s.time); $('#t-len').textContent = fmtTime(s.length);
+  if (!S.seeking) $('#seek').value = s.length > 0 ? Math.round(s.time / s.length * 1000) : 0;
+  if (document.activeElement !== $('#vol') && s.volume >= 0) $('#vol').value = Math.round(s.volume * 100);
+}
+$('#foot').addEventListener('click', e => { const b = e.target.closest('[data-cmd]'); if (b) cmd(b.dataset.cmd); });
+$('#seek').addEventListener('input', () => { S.seeking = true; });
+$('#seek').addEventListener('change', e => { S.seeking = false; if (S.st && S.st.length > 0) cmd('seek', { value: e.target.value / 1000 * S.st.length }); });
+$('#vol').addEventListener('input', e => cmd('volume', { value: e.target.value / 100 }));
+$('#bt-cast').addEventListener('click', () => castMenu(null));
+async function poll() {
+  if (!document.hidden && S.info && S.info.authed) {
+    try { S.st = await GET('/api/status'); paintBar(); if (S.tab === 'now') paintNowLive(); } catch (e) {}
+  }
+  setTimeout(poll, 1000);
+}
+
+/* ---------- navigation ---------- */
+const TABS = [['now', 'Now Playing', 'play'], ['lib', 'Media Center', 'lib'], ['eq', 'Power EQ', 'eq'],
+  ['conv', 'Converter', 'conv', true], ['ren', 'Bulk Renamer', 'ren', true], ['net', 'Network & Cast', 'net']];
+function paintNav() {
+  const nav = $('#nav'); nav.replaceChildren();
+  for (const [id, label, ic, localOnly] of TABS) {
+    if (localOnly && !S.info.local) continue;
+    nav.append(h('button', { class: S.tab === id ? 'on' : '', onclick: () => go(id) }, icon(ic), label));
+  }
+}
+function go(tab) { S.tab = tab; paintNav(); render(); }
+function render() {
+  const m = $('#main'); m.replaceChildren();
+  ({ now: viewNow, lib: viewLib, eq: viewEq, conv: viewConv, ren: viewRen, net: viewNet })[S.tab](m);
+}
+
+/* ---------- login (other devices) ---------- */
+function viewLogin() {
+  $('#foot').hidden = true; $('#nav').hidden = true;
+  const pin = h('input', { type: 'password', inputMode: 'numeric', maxLength: 6, placeholder: '6-digit PIN', style: 'font-size:22px;width:190px;text-align:center', autofocus: true });
+  const msg = h('div', { class: 'err small' });
+  const submit = async () => { try { await POST('/api/login', { pin: pin.value }); location.reload(); } catch (e) { msg.textContent = e.message; } };
+  pin.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  $('#main').replaceChildren(h('div', { class: 'card col', style: 'max-width:420px;margin:8vh auto;align-items:center;text-align:center' },
+    h('h2', null, S.info.name), h('p', { class: 'mute' }, 'Enter the PIN shown in the Network & Cast tab of WLC on that computer.'),
+    pin, h('button', { class: 'primary', onclick: submit }, 'Connect'), msg));
+}
+
+/* ---------- Now Playing ---------- */
+function viewNow(m) {
+  m.append(h('div', { class: 'two' },
+    h('div', { class: 'card col' }, h('h2', null, 'Now Playing'),
+      h('div', { class: 'row', style: 'align-items:flex-start' },
+        h('div', { id: 'np-art', style: 'width:150px;height:150px;border-radius:10px;background:#0e0f11 center/cover no-repeat;flex:none;display:grid;place-items:center;color:#4a505c' }),
+        h('div', { class: 'col grow' }, h('div', { id: 'np-big', style: 'font-size:20px;font-weight:700' }), h('div', { id: 'np-big2', class: 'mute' }),
+          h('div', { class: 'row' },
+            h('button', { id: 'np-rand', onclick: () => cmd('random') }, 'Shuffle'),
+            h('button', { id: 'np-loop', onclick: () => cmd('loop') }, 'Repeat all'),
+            h('button', { id: 'np-rep', onclick: () => cmd('repeat') }, 'Repeat one')),
+          h('div', { class: 'row' }, h('span', { class: 'mute small' }, 'Speed'),
+            h('select', { id: 'np-rate', onchange: e => cmd('rate', { value: +e.target.value }) },
+              [0.5, 0.75, 1, 1.25, 1.5, 2, 3].map(r => h('option', { value: r }, r + '×'))),
+            h('button', { class: 'small', onclick: () => cmd('seekrel', { value: -10 }) }, '−10 s'),
+            h('button', { class: 'small', onclick: () => cmd('seekrel', { value: 30 }) }, '+30 s'),
+            h('button', { class: 'small', onclick: () => cmd('fullscreen') }, 'Fullscreen'))))),
+    h('div', { class: 'card col' }, h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Queue'),
+        h('button', { class: 'small', onclick: () => pickFiles(async paths => { await cmd('add', { paths, play: false }); loadQueue(); }) }, 'Add files…'),
+        h('button', { class: 'small', onclick: async () => { await cmd('clear'); loadQueue(); } }, 'Clear')),
+      h('div', { class: 'scroll', id: 'queue' }))));
+  S.artFor = null; paintNowLive(); loadQueue();
+}
+function paintNowLive() {
+  const s = S.st; if (!s || !$('#np-big')) return;
+  $('#np-big').textContent = s.title || 'Nothing playing';
+  $('#np-big2').textContent = [s.artist, s.album].filter(Boolean).join(' · ');
+  $('#np-rand').className = s.random ? 'primary' : ''; $('#np-loop').className = s.loop ? 'primary' : ''; $('#np-rep').className = s.repeat ? 'primary' : '';
+  if (document.activeElement !== $('#np-rate')) $('#np-rate').value = [0.5, 0.75, 1, 1.25, 1.5, 2, 3].reduce((a, b) => Math.abs(b - s.rate) < Math.abs(a - s.rate) ? b : a);
+  if (S.artFor !== s.path) {
+    S.artFor = s.path; const el = $('#np-art'); el.style.backgroundImage = ''; el.replaceChildren(icon('note'));
+    if (s.path) { const img = new Image(); img.onload = () => { if (S.artFor === s.path) { el.replaceChildren(); el.style.backgroundImage = 'url(' + img.src + ')'; } }; img.src = '/api/art?t=' + Date.now(); }
+    if (S.queueTimer) clearTimeout(S.queueTimer); S.queueTimer = setTimeout(loadQueue, 400);
+  }
+}
+async function loadQueue() {
+  const box = $('#queue'); if (!box) return;
+  try {
+    const { items } = await GET('/api/playlist');
+    box.replaceChildren(items.length ? h('table', null, items.map((it, i) => h('tr', { class: 'click' + (it.current ? ' cur' : ''), onclick: () => cmd('goto', { id: it.id }).then(loadQueue) },
+      h('td', { class: 'mute', style: 'width:34px' }, i + 1), h('td', { class: 'name' }, it.name, it.artist ? h('span', { class: 'mute' }, ' · ' + it.artist) : null),
+      h('td', { class: 'mute', style: 'width:60px;text-align:right' }, it.duration > 0 ? fmtTime(it.duration) : ''))))
+      : h('p', { class: 'mute', style: 'padding:14px' }, 'The queue is empty. Add something from the Media Center.'));
+  } catch (e) {}
+}
+
+/* ---------- folder / file picker ---------- */
+function picker(mode, done) {
+  let cur = '', sel = new Set(), entries = [];
+  const list = h('div', { class: 'scroll', style: 'max-height:50vh' }), where = h('div', { class: 'small mute', style: 'word-break:break-all' });
+  const okBtn = h('button', { class: 'primary', onclick: () => { close(); done(mode === 'folder' ? cur : [...sel]); } }, mode === 'folder' ? 'Use this folder' : 'Add selected');
+  const box = h('div', { class: 'modal', onclick: e => { if (e.target === box) close(); } }, h('div', { class: 'card' },
+    h('h2', null, mode === 'folder' ? 'Choose a folder' : 'Choose files'), where, list,
+    h('div', { class: 'row' }, mode === 'files' ? h('button', { onclick: () => { entries.filter(e => !e.dir).forEach(e => sel.add(e.path)); paint(); } }, 'Select all here') : null,
+      h('span', { class: 'grow' }), h('button', { onclick: () => close() }, 'Cancel'), okBtn)));
+  const close = () => box.remove();
+  function paint() {
+    okBtn.disabled = mode === 'folder' ? !cur : !sel.size;
+    if (mode === 'files') okBtn.textContent = sel.size ? 'Add ' + sel.size + ' file' + (sel.size > 1 ? 's' : '') : 'Add selected';
+    list.replaceChildren(h('table', null, entries.map(e => h('tr', { class: 'click', onclick: () => { if (e.dir) load(e.path); else { sel.has(e.path) ? sel.delete(e.path) : sel.add(e.path); paint(); } } },
+      h('td', { style: 'width:30px' }, e.dir ? icon('folder') : h('input', { type: 'checkbox', checked: sel.has(e.path) })),
+      h('td', { class: 'name' }, e.name), h('td', { class: 'mute small', style: 'text-align:right' }, e.dir ? '' : fmtSize(e.size))))));
+  }
+  async function load(p) {
+    try {
+      const r = await GET('/api/browse?' + q({ path: p, all: mode === 'files-all' ? 1 : 0 }));
+      cur = r.path; where.textContent = cur || 'Starting points';
+      entries = r.entries.sort((a, b) => (b.dir - a.dir) || natCmp(a.name, b.name));
+      if (r.path) entries.unshift({ name: '⬑ Up', path: r.parent || '', dir: true });
+      paint();
+    } catch (e) { fail(e); }
+  }
+  document.body.append(box); load('');
+}
+const pickFolder = done => picker('folder', done);
+const pickFiles = done => picker('files', done);
+
+/* ---------- Media Center ---------- */
+const artQueue = []; let artBusy = 0;
+function artLoad(el, path) { artQueue.push([el, path]); setTimeout(artPump, 0); } // deferred: the tile is not in the page yet
+function artPump() {
+  while (artBusy < 2 && artQueue.length) {
+    const [el, path] = artQueue.shift(); if (!el.isConnected) continue;
+    artBusy++; const img = new Image();
+    img.onload = () => { el.replaceChildren(); el.style.backgroundImage = 'url("' + img.src + '")'; artBusy--; artPump(); };
+    img.onerror = () => { artBusy--; artPump(); };
+    img.src = '/api/art?' + q({ path });
+  }
+}
+async function loadLib(rescan) {
+  try { const r = await GET('/api/library' + (rescan ? '?rescan=1' : '')); S.lib = r.items.map(i => ({ p: i.p, k: i.k, s: i.s, m: i.m, n: base(i.p), d: dirOf(i.p) })); S.libTrunc = r.truncated; }
+  catch (e) { fail(e); S.lib = []; }
+}
+function viewLib(m) {
+  const body = h('div');
+  const search = h('input', { type: 'search', placeholder: 'Search your library', value: S.libQ, class: 'grow', oninput: e => { S.libQ = e.target.value; S.libFolder = null; paint(); } });
+  const seg = h('div', { class: 'seg' }, [['all', 'All'], ['v', 'Video'], ['a', 'Music'], ['i', 'Photos']].map(([k, l]) =>
+    h('button', { class: S.libKind === k ? 'on' : '', onclick: () => { S.libKind = k; S.libFolder = null; render(); } }, l)));
+  m.append(h('div', { class: 'row' }, h('h2', null, 'Media Center'), search, seg,
+    S.info.local ? h('button', { onclick: () => pickFolder(async p => { try { await POST('/api/roots', { add: p }); await refreshInfo(); await loadLib(true); render(); } catch (e) { fail(e); } }) }, '+ Add folder') : null,
+    h('button', { onclick: async () => { await loadLib(true); render(); toast('Library rescanned'); } }, 'Rescan')), h('div', { class: 'gap' }), body);
+  const rootOf = d => (S.info.roots || []).find(r => d === r || d.startsWith(r + '/'));
+  const rel = d => { const r = rootOf(d); return r ? (base(r) + d.slice(r.length)) : d; };
+  const actions = it => h('td', { style: 'white-space:nowrap;text-align:right' },
+    h('button', { class: 'small', title: 'Add to the queue', onclick: e => { e.stopPropagation(); cmd('add', { path: it.p, play: false }).then(() => toast('Queued')); } }, '+ Queue'), ' ',
+    h('button', { class: 'small', title: 'Play in this browser', onclick: e => { e.stopPropagation(); playHere(it); } }, 'Here'), ' ',
+    h('button', { class: 'small', title: 'Cast to another WLC or a browser screen', onclick: e => { e.stopPropagation(); castMenu(it.p); } }, 'Cast'));
+  const rowsOf = list => h('div', { class: 'scroll', style: 'max-height:none' }, h('table', null,
+    h('tr', null, h('th', null, ''), h('th', null, 'Name'), h('th', null, 'Size'), h('th', null, '')),
+    list.slice(0, 600).map(it => h('tr', { class: 'click', title: 'Play on ' + S.info.name, onclick: () => playList(list, it) },
+      h('td', { style: 'width:30px;color:var(--mute)' }, icon(it.k === 'v' ? 'film' : it.k === 'a' ? 'note' : 'img')),
+      h('td', { class: 'name' }, it.n), h('td', { class: 'mute small', style: 'white-space:nowrap' }, fmtSize(it.s)), actions(it))),
+    list.length > 600 ? h('tr', null, h('td', { colSpan: 4, class: 'mute' }, 'Showing the first 600 of ' + list.length + '. Search to narrow it down.')) : null));
+  function paint() {
+    if (!S.lib) { body.replaceChildren(h('p', { class: 'mute' }, 'Scanning…')); return; }
+    let items = S.lib.filter(i => S.libKind === 'all' || i.k === S.libKind);
+    if (!(S.info.roots || []).length) {
+      body.replaceChildren(h('div', { class: 'card col', style: 'align-items:flex-start' }, h('h3', null, 'No folders yet'),
+        h('p', { class: 'mute' }, S.info.local ? 'Add the folders that hold your movies, shows, music and photos. Only folders you add here are visible to other devices on your network.' : 'No folders have been shared from that computer yet.')));
+      return;
+    }
+    const qq = S.libQ.trim().toLowerCase();
+    if (qq) { items = items.filter(i => i.p.toLowerCase().includes(qq)).sort((a, b) => natCmp(a.n, b.n));
+      body.replaceChildren(h('p', { class: 'mute small' }, items.length + ' match' + (items.length === 1 ? '' : 'es')), rowsOf(items)); return; }
+    if (S.libFolder) {
+      const list = items.filter(i => i.d === S.libFolder).sort((a, b) => natCmp(a.n, b.n));
+      body.replaceChildren(h('div', { class: 'row' }, h('button', { onclick: () => { S.libFolder = null; paint(); } }, '← Back'), h('h3', { class: 'grow' }, rel(S.libFolder)),
+        h('button', { class: 'primary', onclick: () => playList(list, list[0]) }, 'Play all'),
+        h('button', { title: 'Send the whole folder, in order, to a WLC or a browser screen', onclick: () => castMenu(list.filter(i => i.k !== 'i').slice(0, 500).map(i => i.p)) }, 'Cast folder'),
+        S.info.local ? h('button', { onclick: () => { S.conv.files = list.map(i => i.p); go('conv'); } }, 'Convert…') : null,
+        S.info.local ? h('button', { onclick: () => { openRenDir(S.libFolder); go('ren'); } }, 'Rename…') : null), h('div', { class: 'gap' }), rowsOf(list));
+      return;
+    }
+    const groups = new Map();
+    for (const i of items) { let g = groups.get(i.d); if (!g) groups.set(i.d, g = { d: i.d, n: 0, newest: 0, kinds: {}, first: null }); g.n++; g.newest = Math.max(g.newest, i.m); g.kinds[i.k] = (g.kinds[i.k] || 0) + 1; if (!g.first || natCmp(i.n, base(g.first)) < 0) g.first = i.p; }
+    const list = [...groups.values()].sort((a, b) => S.libSort === 'new' ? b.newest - a.newest : natCmp(rel(a.d), rel(b.d)));
+    body.replaceChildren(h('div', { class: 'row' }, h('span', { class: 'mute small grow' }, items.length + ' items in ' + list.length + ' folders' + (S.libTrunc ? ' (library is very large; only part is listed)' : '')),
+        h('select', { onchange: e => { S.libSort = e.target.value; paint(); } }, h('option', { value: 'name', selected: S.libSort !== 'new' }, 'Sort: name'), h('option', { value: 'new', selected: S.libSort === 'new' }, 'Sort: recently added'))),
+      h('div', { class: 'gap' }), h('div', { class: 'grid' }, list.slice(0, 400).map(g => {
+        const main = Object.entries(g.kinds).sort((a, b) => b[1] - a[1])[0][0];
+        const art = h('div', { class: 'art' }, icon(main === 'v' ? 'film' : main === 'a' ? 'note' : 'img'));
+        if (main === 'a') artLoad(art, g.first); else if (main === 'i') art.style.backgroundImage = 'url("/api/file?' + q({ path: g.first }) + '")', art.replaceChildren();
+        return h('div', { class: 'tile', tabIndex: 0, onclick: () => { S.libFolder = g.d; paint(); }, onkeydown: e => { if (e.key === 'Enter') { S.libFolder = g.d; paint(); } } }, art,
+          h('div', { class: 'cap' }, h('b', { title: g.d }, base(g.d)), h('span', { class: 'mute small' }, g.n + ' item' + (g.n > 1 ? 's' : ''))));
+      })));
+  }
+  paint(); if (!S.lib) loadLib().then(paint);
+}
+async function playList(list, start) {
+  const i = list.indexOf(start); const paths = list.slice(i).concat(list.slice(0, i)).slice(0, 500).map(x => x.p);
+  await cmd('clear'); await cmd('add', { paths, play: true });
+}
+function playHere(it) {
+  const box = $('#local-player'); const src = '/api/file?' + q({ path: it.p });
+  const el = it.k === 'i' ? h('img', { src, style: 'width:100%;border-radius:8px' }) : h(it.k === 'v' ? 'video' : 'audio', { src, controls: true, autoplay: true });
+  if (el.addEventListener) el.addEventListener('error', () => toast('This browser cannot play that format. Use "Play on WLC" or convert it.', true));
+  box.replaceChildren(h('div', { class: 'card col' }, h('div', { class: 'row' }, h('b', { class: 'grow', style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, it.n),
+    h('button', { class: 'small', onclick: () => { box.hidden = true; box.replaceChildren(); } }, 'Close')), el));
+  box.hidden = false;
+}
+
+/* ---------- Power EQ ---------- */
+const ISO = { 10: [31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000], 15: [25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000],
+  31: [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000] };
+const QOF = { 10: 1.41, 15: 2.15, 31: 4.32 };
+const PRESETS = { 'Flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'Bass boost': [7, 6, 4, 2, 0, 0, 0, 0, 0, 0], 'Sub bass': [9, 6, 2, 0, 0, 0, 0, 0, 0, 0], 'Treble boost': [0, 0, 0, 0, 0, 0, 2, 4, 6, 7],
+  'Loudness': [6, 4, 1, 0, -1, -1, 0, 2, 4, 5], 'Vocal clarity': [-3, -2, -1, 0, 2, 4, 4, 3, 1, 0], 'Speech / podcast': [-8, -5, -2, 0, 2, 4, 4, 2, -1, -4], 'Rock': [5, 4, 2, -1, -2, -1, 2, 4, 5, 5],
+  'Pop': [-1, 1, 3, 4, 3, 1, -1, -1, 1, 2], 'Jazz': [3, 2, 1, 2, -1, -1, 0, 1, 3, 4], 'Classical': [4, 3, 2, 1, 0, 0, 0, 1, 3, 4], 'Dance': [7, 6, 3, 0, 0, -2, -1, 1, 4, 5],
+  'Hip-hop': [7, 6, 3, 1, -1, -1, 1, 0, 2, 4], 'Acoustic': [4, 3, 2, 1, 2, 2, 3, 3, 3, 2], 'Small speakers': [-6, 2, 5, 4, 1, 0, 1, 2, 3, 2], 'Headphones': [4, 3, 1, -1, -1, 0, 2, 3, 4, 3], 'Night (tame bass)': [-9, -6, -3, 0, 1, 2, 2, 1, 0, 0] };
+const PTYPES = ['peak', 'lowshelf', 'highshelf', 'lowpass', 'highpass', 'notch', 'bandpass'];
+function resample(src, n) { // gains on one ISO layout -> another, by log-frequency interpolation
+  const fs = ISO[src.length], ft = ISO[n]; if (!fs) return ft.map(() => 0);
+  return ft.map(f => { if (f <= fs[0]) return src[0]; if (f >= fs[fs.length - 1]) return src[src.length - 1];
+    let i = 1; while (fs[i] < f) i++; const t = Math.log(f / fs[i - 1]) / Math.log(fs[i] / fs[i - 1]); return +(src[i - 1] + (src[i] - src[i - 1]) * t).toFixed(1); });
+}
+function biquad(type, f, g, Q, fsr) {
+  const A = Math.pow(10, g / 40), w = 2 * Math.PI * f / fsr, c = Math.cos(w), s = Math.sin(w), al = s / (2 * Q); let b0, b1, b2, a0, a1, a2;
+  if (type === 'peak') { b0 = 1 + al * A; b1 = -2 * c; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * c; a2 = 1 - al / A; }
+  else if (type === 'lowshelf') { const k = 2 * Math.sqrt(A) * al; b0 = A * ((A + 1) - (A - 1) * c + k); b1 = 2 * A * ((A - 1) - (A + 1) * c); b2 = A * ((A + 1) - (A - 1) * c - k); a0 = (A + 1) + (A - 1) * c + k; a1 = -2 * ((A - 1) + (A + 1) * c); a2 = (A + 1) + (A - 1) * c - k; }
+  else if (type === 'highshelf') { const k = 2 * Math.sqrt(A) * al; b0 = A * ((A + 1) + (A - 1) * c + k); b1 = -2 * A * ((A - 1) + (A + 1) * c); b2 = A * ((A + 1) + (A - 1) * c - k); a0 = (A + 1) - (A - 1) * c + k; a1 = 2 * ((A - 1) - (A + 1) * c); a2 = (A + 1) - (A - 1) * c - k; }
+  else if (type === 'lowpass') { b0 = (1 - c) / 2; b1 = 1 - c; b2 = (1 - c) / 2; a0 = 1 + al; a1 = -2 * c; a2 = 1 - al; }
+  else if (type === 'highpass') { b0 = (1 + c) / 2; b1 = -(1 + c); b2 = (1 + c) / 2; a0 = 1 + al; a1 = -2 * c; a2 = 1 - al; }
+  else if (type === 'notch') { b0 = 1; b1 = -2 * c; b2 = 1; a0 = 1 + al; a1 = -2 * c; a2 = 1 - al; }
+  else { b0 = al; b1 = 0; b2 = -al; a0 = 1 + al; a1 = -2 * c; a2 = 1 - al; }
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+}
+function magDb(bq, f, fsr) { const w = 2 * Math.PI * f / fsr, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+  const nr = bq[0] + bq[1] * c1 + bq[2] * c2, ni = -(bq[1] * s1 + bq[2] * s2), dr = 1 + bq[3] * c1 + bq[4] * c2, di = -(bq[3] * s1 + bq[4] * s2);
+  return 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di) + 1e-12); }
+function eqStages(e) { const out = [], fsr = 48000; e.g.forEach((g, i) => { if (Math.abs(g) > 0.01) out.push(biquad('peak', ISO[e.g.length][i], g, QOF[e.g.length], fsr)); });
+  e.p.forEach(b => { if (b.f >= 10 && b.f < fsr * 0.49 && (!['peak', 'lowshelf', 'highshelf'].includes(b.t) || Math.abs(b.g) > 0.01)) out.push(biquad(b.t, b.f, b.g, Math.min(30, Math.max(0.1, b.q)), fsr)); }); return out; }
+function eqDraw(cv, e) {
+  const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = 180 * devicePixelRatio, x = cv.getContext('2d'), st = eqStages(e), R = 24;
+  const fx = f => Math.log(f / 20) / Math.log(1000) * W, gy = g => H / 2 - g / R * (H / 2 - 8);
+  x.clearRect(0, 0, W, H); x.lineWidth = 1; x.font = 10 * devicePixelRatio + 'px system-ui'; x.fillStyle = '#6d7684';
+  for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) { x.strokeStyle = '#23272e'; x.beginPath(); x.moveTo(fx(f), 0); x.lineTo(fx(f), H); x.stroke(); x.fillText(f >= 1000 ? f / 1000 + 'k' : f, fx(f) + 3, H - 4); }
+  for (const g of [-18, -12, -6, 0, 6, 12, 18]) { x.strokeStyle = g ? '#23272e' : '#4a505c'; x.beginPath(); x.moveTo(0, gy(g)); x.lineTo(W, gy(g)); x.stroke(); x.fillText((g > 0 ? '+' : '') + g, 3, gy(g) - 3); }
+  x.strokeStyle = e.on ? '#ff6b00' : '#6d7684'; x.lineWidth = 2.5 * devicePixelRatio; x.beginPath();
+  for (let i = 0; i <= 240; i++) { const f = 20 * Math.pow(1000, i / 240); let db = e.pre; for (const b of st) db += magDb(b, f, 48000); const y = gy(Math.max(-R, Math.min(R, db))); i ? x.lineTo(fx(f), y) : x.moveTo(fx(f), y); }
+  x.stroke();
+}
+const eqParse = r => ({ on: r.on, lim: r.limiter, pre: r.preamp, bal: r.balance, wid: r.width,
+  g: (() => { const a = r.graphic.trim().split(/[ ,]+/).filter(Boolean).map(Number); return ISO[a.length] ? a : ISO[10].map(() => 0); })(),
+  p: r.parametric.split(';').filter(Boolean).map(s => { const [t, f, g, qq] = s.split(','); return { t, f: +f, g: +g || 0, q: +qq || 1 }; }).filter(b => PTYPES.includes(b.t)) });
+let eqTimer = null;
+function eqSend(save) {
+  const e = S.eq; clearTimeout(eqTimer);
+  eqTimer = setTimeout(() => POST('/api/eq', { on: e.on, limiter: e.lim, preamp: e.pre, balance: e.bal, width: e.wid, graphic: e.g.map(v => (+v).toFixed(1)).join(' '),
+    parametric: e.p.map(b => [b.t, Math.round(b.f), (+b.g).toFixed(1), (+b.q).toFixed(2)].join(',')).join(';'), save: !!save }).catch(fail), save ? 0 : 50);
+}
+async function viewEq(m) {
+  if (!S.eq) { try { S.eq = eqParse(await GET('/api/eq')); } catch (e) { fail(e); return; } }
+  if (S.tab !== 'eq') return;
+  const e = S.eq, cv = h('canvas', { height: 180 }), redraw = () => eqDraw(cv, e);
+  const sliders = h('div', { class: 'eq-sliders' }), ptab = h('div', { class: 'col' });
+  const upd = save => { redraw(); eqSend(save); };
+  function paintSliders() {
+    sliders.replaceChildren(ISO[e.g.length].map((f, i) => { const val = h('b', null, (+e.g[i]).toFixed(1));
+      return h('div', { class: 'eq-band' }, val, h('input', { type: 'range', min: -24, max: 24, step: 0.5, value: e.g[i], 'aria-label': f + ' Hz', ondblclick: ev => { ev.target.value = 0; e.g[i] = 0; val.textContent = '0.0'; upd(true); },
+        oninput: ev => { e.g[i] = +ev.target.value; val.textContent = e.g[i].toFixed(1); upd(false); }, onchange: () => upd(true) }), h('span', null, f >= 1000 ? (f / 1000) + 'k' : f)); }));
+  }
+  function paintParam() {
+    ptab.replaceChildren(e.p.map((b, i) => { const num = (k, min, max, step, w) => h('input', { type: 'number', min, max, step, value: b[k], style: 'width:' + w + 'px', onchange: ev => { b[k] = +ev.target.value; upd(true); } });
+      return h('div', { class: 'rule' }, h('select', { onchange: ev => { b.t = ev.target.value; upd(true); } }, PTYPES.map(t => h('option', { value: t, selected: t === b.t }, t))),
+        h('label', { class: 'small mute' }, 'Hz '), num('f', 10, 22000, 1, 86), h('label', { class: 'small mute' }, 'dB '), num('g', -24, 24, 0.5, 70), h('label', { class: 'small mute' }, 'Q '), num('q', 0.1, 30, 0.05, 70),
+        h('span', { class: 'grow' }), h('button', { class: 'small', onclick: () => { e.p.splice(i, 1); paintParam(); upd(true); } }, 'Remove')); }),
+      e.p.length < 12 ? h('div', null, h('button', { onclick: () => { e.p.push({ t: 'peak', f: 1000, g: 0, q: 1.4 }); paintParam(); upd(true); } }, '+ Add parametric band')) : null);
+  }
+  const custom = S.ui.eqPresets || {};
+  const presetSel = h('select', { onchange: ev => { const v = ev.target.value; if (!v) return; const c = custom[v];
+    if (c) { Object.assign(e, JSON.parse(JSON.stringify(c)), { on: true }); } else { e.g = resample(PRESETS[v], e.g.length); e.on = true; }
+    render(); eqSend(true); } }, h('option', { value: '' }, 'Presets…'), Object.keys(PRESETS).map(k => h('option', { value: k }, k)),
+    Object.keys(custom).length ? h('optgroup', { label: 'Yours' }, Object.keys(custom).map(k => h('option', { value: k }, k))) : null);
+  m.append(h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Power EQ'),
+      h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: e.on, onchange: ev => { e.on = ev.target.checked; upd(true); } }), h('b', null, 'Enabled')), presetSel,
+      S.info.local ? h('button', { onclick: async () => { const n = prompt('Name this preset'); if (!n) return; custom[n] = { g: e.g.slice(), p: JSON.parse(JSON.stringify(e.p)), pre: e.pre, bal: e.bal, wid: e.wid }; S.ui.eqPresets = custom; try { await POST('/api/ui', S.ui); toast('Preset saved'); render(); } catch (x) { fail(x); } } }, 'Save preset') : null,
+      h('button', { onclick: () => { e.g = e.g.map(() => 0); e.p = []; e.pre = 0; e.bal = 0; e.wid = 1; render(); eqSend(true); } }, 'Reset')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, cv,
+      h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Graphic bands'), h('div', { class: 'seg' }, [10, 15, 31].map(n => h('button', { class: e.g.length === n ? 'on' : '', onclick: () => { e.g = resample(e.g, n); render(); eqSend(true); } }, n + ' bands')))),
+      sliders, h('p', { class: 'mute small', style: 'margin:0' }, 'Double-click a slider to zero it. Range ±24 dB.')),
+    h('div', { class: 'gap' }), h('div', { class: 'two' },
+      h('div', { class: 'card col' }, h('h3', null, 'Parametric bands (up to 12)'), ptab),
+      h('div', { class: 'card col' }, h('h3', null, 'Output'),
+        ...[['Preamp', 'pre', -24, 24, 0.5, v => (v > 0 ? '+' : '') + (+v).toFixed(1) + ' dB'], ['Balance', 'bal', -1, 1, 0.05, v => v == 0 ? 'center' : (v < 0 ? 'L ' : 'R ') + Math.abs(v * 100).toFixed(0) + '%'], ['Stereo width', 'wid', 0, 2, 0.05, v => (v * 100).toFixed(0) + '%']].map(([label, k, min, max, step, fmt]) => {
+          const out = h('span', { class: 'small', style: 'width:70px;text-align:right' }, fmt(e[k]));
+          return h('div', { class: 'row' }, h('span', { style: 'width:96px' }, label), h('input', { type: 'range', class: 'grow', min, max, step, value: e[k], oninput: ev => { e[k] = +ev.target.value; out.textContent = fmt(e[k]); upd(false); }, onchange: () => upd(true) }), out); }),
+        h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: e.lim, onchange: ev => { e.lim = ev.target.checked; upd(true); } }), 'Clip guard (limiter keeps big boosts from distorting)'))));
+  paintSliders(); paintParam(); requestAnimationFrame(redraw);
+}
+
+/* ---------- Converter ---------- */
+let jobTimer = null;
+async function viewConv(m) {
+  if (!S.profiles) { try { S.profiles = (await GET('/api/profiles')).profiles; } catch (e) { fail(e); return; } }
+  if (S.tab !== 'conv') return;
+  const c = S.conv; c.profile = c.profile || 'mp4-h264'; c.out = c.out || 'sub';
+  const prof = () => S.profiles.find(p => p.id === c.profile);
+  const files = h('div', { class: 'scroll', style: 'max-height:30vh' }), opts = h('div', { class: 'row' }), jobs = h('div', { class: 'col' });
+  const paintFiles = () => files.replaceChildren(c.files.length ? h('table', null, c.files.map((f, i) => h('tr', null, h('td', { class: 'name' }, base(f), h('div', { class: 'mute small' }, dirOf(f))),
+    h('td', { style: 'width:40px' }, h('button', { class: 'small', onclick: () => { c.files.splice(i, 1); paintFiles(); } }, '✕'))))) : h('p', { class: 'mute', style: 'padding:14px' }, 'No files yet. Add files here, or use "Convert…" on a folder in the Media Center.'));
+  function paintOpts() {
+    const p = prof(), num = (k, label, def, w) => h('label', { class: 'small mute' }, label + ' ', h('input', { type: 'number', value: c[k] != null ? c[k] : def, style: 'width:' + (w || 84) + 'px', onchange: e => { c[k] = e.target.value === '' ? null : +e.target.value; } }));
+    c.vb = c.ab = c.height = c.samplerate = null;
+    opts.replaceChildren(p.video ? num('vb', 'Video kbps', p.vb) : null, p.video ? h('label', { class: 'small mute' }, 'Height ', h('select', { onchange: e => { c.height = +e.target.value; } },
+        [[0, 'Original'], [2160, '2160p'], [1080, '1080p'], [720, '720p'], [480, '480p'], [360, '360p']].map(([v, l]) => h('option', { value: v, selected: v === p.height }, l)))) : null,
+      p.video ? num('fps', 'FPS (0 = same)', 0, 70) : null, p.ab ? num('ab', 'Audio kbps', p.ab, 70) : null,
+      h('label', { class: 'small mute' }, 'Sample rate ', h('select', { onchange: e => { c.samplerate = +e.target.value; } }, [[0, 'Same'], [22050, '22.05 kHz'], [44100, '44.1 kHz'], [48000, '48 kHz'], [96000, '96 kHz']].map(([v, l]) => h('option', { value: v, selected: v === p.samplerate }, l)))),
+      h('label', { class: 'small mute' }, 'Channels ', h('select', { onchange: e => { c.channels = +e.target.value; } }, [[0, 'Same'], [1, 'Mono'], [2, 'Stereo']].map(([v, l]) => h('option', { value: v, selected: v === (c.channels || 0) }, l)))));
+  }
+  const custom = h('input', { type: 'text', class: 'grow', placeholder: 'Advanced: your own transcode options, e.g. vcodec=h264,venc=x264{preset=slow,crf=20},acodec=mp4a,ab=192', value: c.custom || '', oninput: e => { c.custom = e.target.value; } });
+  const outDir = h('span', { class: 'small mute' }, c.outDir || '');
+  m.append(h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Converter'), h('button', { onclick: () => pickFiles(p => { c.files = [...new Set(c.files.concat(p))]; paintFiles(); }) }, '+ Add files'), h('button', { onclick: () => { c.files = []; paintFiles(); } }, 'Clear list')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, files,
+      h('div', { class: 'row' }, h('b', null, 'Convert to'), h('select', { class: 'grow', onchange: e => { c.profile = e.target.value; paintOpts(); } },
+        h('optgroup', { label: 'Video' }, S.profiles.filter(p => p.video).map(p => h('option', { value: p.id, selected: p.id === c.profile }, p.label))),
+        h('optgroup', { label: 'Audio only (also pulls the sound out of a video)' }, S.profiles.filter(p => !p.video).map(p => h('option', { value: p.id, selected: p.id === c.profile }, p.label))))),
+      opts, h('div', { class: 'row' }, custom),
+      h('div', { class: 'row' }, h('b', null, 'Save to'), h('select', { onchange: e => { c.out = e.target.value; if (c.out === 'pick') pickFolder(p => { c.outDir = p; outDir.textContent = p; }); else outDir.textContent = ''; } },
+          h('option', { value: 'sub', selected: c.out === 'sub' }, 'A "Converted" folder next to each file'), h('option', { value: 'same', selected: c.out === 'same' }, 'Same folder as each file'), h('option', { value: 'pick', selected: c.out === 'pick' }, 'One folder I choose…')), outDir,
+        h('span', { class: 'grow' }), h('label', { class: 'small mute' }, 'At once ', h('select', { onchange: e => POST('/api/settings', { parallel: +e.target.value }).then(i => { S.info = i; }).catch(fail) }, [1, 2, 3, 4, 6, 8].map(n => h('option', { value: n, selected: n === S.info.parallel }, n)))),
+        h('button', { class: 'primary', onclick: async () => {
+          if (!c.files.length) return toast('Add some files first', true); if (c.out === 'pick' && !c.outDir) return toast('Choose the output folder', true);
+          const body = { files: c.files, profile: c.profile, out: c.out === 'pick' ? c.outDir : c.out, custom: c.custom || '' };
+          for (const k of ['vb', 'ab', 'height', 'samplerate', 'channels', 'fps']) if (c[k] != null) body[k] = c[k];
+          try { const r = await POST('/api/convert', body); toast(r.queued + ' file' + (r.queued === 1 ? '' : 's') + ' queued'); c.files = []; paintFiles(); pollJobs(); } catch (e) { fail(e); } } }, 'Start converting')),
+      h('p', { class: 'mute small', style: 'margin:0' }, 'Originals are never changed or replaced. If a name is taken the new file gets " (2)". Playback keeps working while files convert.')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Jobs'),
+      h('button', { class: 'small', onclick: () => POST('/api/jobs/cancel', { all: true }).then(pollJobs).catch(fail) }, 'Cancel all'), h('button', { class: 'small', onclick: () => POST('/api/jobs/cancel', { clear: true }).then(pollJobs).catch(fail) }, 'Clear finished')), jobs));
+  async function pollJobs() {
+    clearTimeout(jobTimer); if (S.tab !== 'conv' || !jobs.isConnected) return;
+    try { const r = await GET('/api/jobs');
+      jobs.replaceChildren(r.jobs.length ? h('table', null, r.jobs.slice().reverse().map(j => h('tr', null, h('td', { class: 'name' }, base(j.src), h('div', { class: 'mute small' }, j.state === 'done' ? '→ ' + j.dst : j.label)),
+        h('td', { style: 'width:150px' }, j.state === 'running' ? h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.round(j.progress * 100) + '%' })) : h('span', { class: j.state === 'done' ? 'ok' : j.state === 'error' ? 'err' : 'mute' }, j.state === 'error' ? j.msg || 'error' : j.state)),
+        h('td', { style: 'width:70px;text-align:right' }, j.state === 'running' ? Math.round(j.progress * 100) + '%' : (j.state === 'queued' ? h('button', { class: 'small', onclick: () => POST('/api/jobs/cancel', { id: j.id }).then(pollJobs) }, 'Cancel') : ''))))) : h('p', { class: 'mute' }, 'Nothing queued.'));
+      if (r.jobs.some(j => j.state === 'running' || j.state === 'queued')) jobTimer = setTimeout(pollJobs, 700);
+    } catch (e) {}
+  }
+  paintFiles(); paintOpts(); pollJobs();
+}
+
+/* ---------- Bulk Renamer ---------- */
+const RULES = {
+  replace: { label: 'Replace text', def: { find: '', with: '', regex: false, cs: false }, ui: (r, ch) => [inp(r, 'find', 'find', ch), '→', inp(r, 'with', 'replace with', ch), chk(r, 'regex', 'regex', ch), chk(r, 'cs', 'match case', ch)],
+    run: (n, r) => { if (!r.find) return n; try { const re = new RegExp(r.regex ? r.find : r.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g' + (r.cs ? '' : 'i')); return n.replace(re, r.regex ? r.with : () => r.with); } catch (e) { return n; } } },
+  remove: { label: 'Remove characters', def: { from: 'start', count: 1 }, ui: (r, ch) => [numi(r, 'count', ch), 'from the', sel(r, 'from', [['start', 'start'], ['end', 'end']], ch)],
+    run: (n, r) => r.from === 'start' ? n.slice(r.count) : (r.count > 0 ? n.slice(0, -r.count) : n) },
+  between: { label: 'Remove between', def: { a: '(', b: ')' }, ui: (r, ch) => [inp(r, 'a', 'from', ch, 60), 'and', inp(r, 'b', 'to', ch, 60), h('span', { class: 'mute small' }, '(brackets and what is inside)')],
+    run: (n, r) => { if (!r.a || !r.b) return n; const es = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return n.replace(new RegExp('\\s*' + es(r.a) + '[^' + es(r.b).slice(-1) + ']*' + es(r.b), 'g'), ''); } },
+  stripnum: { label: 'Strip leading numbers', def: {}, ui: () => [h('span', { class: 'mute small' }, '"01 - Song" → "Song" (keeps names that are only a number)')],
+    run: n => { const m = n.match(/^\s*\d{1,4}\s*[-._)\]]*\s+(?=\S)(.+)$/) || n.match(/^\s*\d{1,4}\s*[-._)\]]+\s*(.+)$/); return m ? m[1] : n; } },
+  insert: { label: 'Add text', def: { text: '', at: 'start' }, ui: (r, ch) => [inp(r, 'text', 'text', ch), 'at the', sel(r, 'at', [['start', 'start'], ['end', 'end']], ch)], run: (n, r) => r.at === 'start' ? r.text + n : n + r.text },
+  clean: { label: 'Clean up', def: {}, ui: () => [h('span', { class: 'mute small' }, 'underscores and dots become spaces, extra spaces removed')], run: n => n.replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').replace(/\s+-\s*-\s+/g, ' - ').trim() },
+  kase: { label: 'Change case', def: { mode: 'title' }, ui: (r, ch) => [sel(r, 'mode', [['title', 'Title Case'], ['lower', 'lower case'], ['upper', 'UPPER CASE'], ['sentence', 'Sentence case']], ch)],
+    run: (n, r) => r.mode === 'lower' ? n.toLowerCase() : r.mode === 'upper' ? n.toUpperCase() : r.mode === 'sentence' ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()
+      : n.toLowerCase().replace(/(^|[\s\-(\[])([a-zà-ɏ])/g, (m, a, b) => a + b.toUpperCase()).replace(/(?!^)\b(A|An|The|And|Or|Of|In|On|To|For|At|By|With)\b(?!$)/g, w => w.toLowerCase()) },
+  number: { label: 'Number in order', def: { start: 1, step: 1, pad: 2, sep: ' - ', at: 'start' }, ui: (r, ch) => ['start', numi(r, 'start', ch), 'step', numi(r, 'step', ch), 'digits', numi(r, 'pad', ch), inp(r, 'sep', 'separator', ch, 60), sel(r, 'at', [['start', 'before name'], ['end', 'after name'], ['only', 'number only']], ch)],
+    run: (n, r, i) => { const num = String(r.start + i * r.step).padStart(r.pad, '0'); return r.at === 'only' ? num : r.at === 'start' ? num + r.sep + n : n + r.sep + num; } },
+  tags: { label: 'Name from tags', def: { pat: '{track:2} - {title}' }, needsMeta: true, ui: (r, ch) => [inp(r, 'pat', 'pattern', ch, 260), h('span', { class: 'mute small' }, '{title} {artist} {album} {albumartist} {track:2} {disc} {year} {genre} {show} {season:2} {episode:2} {name} {n:3}')],
+    run: (n, r, i, f) => { const t = S.ren.meta[f.path]; if (!t) return n; const v = { title: t.title, artist: t.artist, album: t.album, albumartist: t.albumartist, track: t.track, disc: t.disc, year: (t.year || '').slice(0, 4), genre: t.genre, show: t.show, season: t.season, episode: t.episode, name: n, n: String(i + 1) };
+      let miss = false; const out = r.pat.replace(/\{(\w+)(?::(\d))?\}/g, (m, k, pad) => { let x = v[k]; if (x == null || x === '') { if (k !== 'name') miss = true; return ''; } x = String(x); if (pad && /^\d+/.test(x)) x = x.match(/^\d+/)[0].padStart(+pad, '0'); return x; });
+      return miss && !t.title ? n : out.trim(); } },
+  ext: { label: 'Extension', def: { mode: 'lower' }, isExt: true, ui: (r, ch) => [sel(r, 'mode', [['lower', 'lower case'], ['upper', 'UPPER CASE']], ch)], run: (e, r) => r.mode === 'lower' ? e.toLowerCase() : e.toUpperCase() }
+};
+const inp = (r, k, ph, ch, w) => h('input', { type: 'text', value: r[k], placeholder: ph, style: 'width:' + (w || 150) + 'px', oninput: e => { r[k] = e.target.value; ch(); } });
+const numi = (r, k, ch) => h('input', { type: 'number', value: r[k], style: 'width:64px', oninput: e => { r[k] = +e.target.value || 0; ch(); } });
+const chk = (r, k, label, ch) => h('label', { class: 'small row', style: 'gap:4px' }, h('input', { type: 'checkbox', checked: r[k], onchange: e => { r[k] = e.target.checked; ch(); } }), label);
+const sel = (r, k, opts, ch) => h('select', { onchange: e => { r[k] = e.target.value; ch(); } }, opts.map(([v, l]) => h('option', { value: v, selected: r[k] === v }, l)));
+const BAD = /[\/\\:*?"<>|\u0000-\u001f]/g;
+function renCompute() {
+  const R = S.ren; let i = 0; const seen = new Map(), keep = new Set(R.files.filter(f => !f.on).map(f => f.name.toLowerCase()));
+  for (const f of R.files) {
+    if (!f.on) { f.to = f.name; f.clash = false; continue; }
+    const dot = f.name.lastIndexOf('.'); let stem = dot > 0 ? f.name.slice(0, dot) : f.name, ext = dot > 0 ? f.name.slice(dot + 1) : '';
+    for (const r of R.rules) { const d = RULES[r.type]; if (d.isExt) ext = d.run(ext, r); else stem = d.run(stem, r, i, f); }
+    stem = stem.replace(BAD, '').replace(/\s+/g, ' ').trim(); f.to = (stem || f.name.slice(0, dot > 0 ? dot : undefined)) + (ext ? '.' + ext : ''); i++;
+    const key = f.to.toLowerCase(); seen.set(key, (seen.get(key) || 0) + 1);
+  }
+  for (const f of R.files) if (f.on) f.clash = seen.get(f.to.toLowerCase()) > 1 || keep.has(f.to.toLowerCase());
+}
+async function openRenDir(dir) {
+  const R = S.ren; R.dir = dir; R.meta = {};
+  try { const r = await GET('/api/browse?' + q({ path: dir, all: 1 })); R.files = r.entries.filter(e => !e.dir).map(e => ({ path: e.path, name: e.name, size: e.size, mtime: e.mtime, on: true })); renSort(); }
+  catch (e) { fail(e); R.files = []; }
+  if (S.tab === 'ren') render();
+}
+function renSort() { const R = S.ren, k = R.sort; R.files.sort((a, b) => k === 'date' ? a.mtime - b.mtime : k === 'size' ? a.size - b.size : natCmp(a.name, b.name)); if (R.rev) R.files.reverse(); }
+async function renMeta(paint) {
+  const R = S.ren, need = R.files.filter(f => f.on && !(f.path in R.meta)); let k = 0;
+  const work = async () => { while (k < need.length) { const f = need[k++]; try { R.meta[f.path] = await GET('/api/meta?' + q({ path: f.path })); } catch (e) { R.meta[f.path] = {}; } if (k % 5 === 0) paint(); } };
+  await Promise.all([work(), work()]); paint();
+}
+function viewRen(m) {
+  const R = S.ren, rules = h('div', { class: 'col' }), list = h('div', { class: 'scroll' }), summary = h('span', { class: 'small mute grow' }), apply = h('button', { class: 'primary' }, 'Rename');
+  const hist = h('div', { class: 'col' });
+  function paintList() {
+    renCompute(); const on = R.files.filter(f => f.on), chg = on.filter(f => f.to !== f.name), clash = on.filter(f => f.clash && f.to !== f.name);
+    summary.textContent = R.dir ? chg.length + ' of ' + R.files.length + ' files will change' + (clash.length ? ' · ' + clash.length + ' name clash' + (clash.length > 1 ? 'es' : '') + ' (fix before renaming)' : '') : '';
+    summary.className = 'small grow ' + (clash.length ? 'err' : 'mute'); apply.disabled = !chg.length || !!clash.length; apply.textContent = chg.length ? 'Rename ' + chg.length + ' file' + (chg.length > 1 ? 's' : '') : 'Rename';
+    list.replaceChildren(R.files.length ? h('table', null, h('tr', null, h('th', { style: 'width:30px' }, h('input', { type: 'checkbox', checked: R.files.every(f => f.on), title: 'All / none', onchange: e => { R.files.forEach(f => f.on = e.target.checked); paintList(); } })), h('th', null, 'Now'), h('th', null, 'Becomes')),
+      R.files.slice(0, 2000).map(f => h('tr', null, h('td', null, h('input', { type: 'checkbox', checked: f.on, onchange: e => { f.on = e.target.checked; paintList(); } })), h('td', { class: 'name' }, f.name),
+        h('td', { class: 'name ' + (f.clash && f.to !== f.name ? 'clash' : f.to !== f.name ? 'chg' : 'mute') }, f.to)))) : h('p', { class: 'mute', style: 'padding:14px' }, R.dir ? 'No files in this folder.' : 'Open a folder to begin.'));
+  }
+  const changed = () => { paintList(); if (R.rules.some(r => RULES[r.type].needsMeta)) renMeta(paintList); };
+  function paintRules() {
+    rules.replaceChildren(R.rules.map((r, i) => h('div', { class: 'rule' }, h('b', null, (i + 1) + '. ' + RULES[r.type].label), ...RULES[r.type].ui(r, changed), h('span', { class: 'grow' }),
+      i ? h('button', { class: 'small', title: 'Move up', onclick: () => { R.rules.splice(i - 1, 0, R.rules.splice(i, 1)[0]); paintRules(); changed(); } }, '↑') : null,
+      h('button', { class: 'small', onclick: () => { R.rules.splice(i, 1); paintRules(); changed(); } }, 'Remove'))),
+      h('div', { class: 'row' }, h('select', { onchange: e => { const t = e.target.value; if (!t) return; R.rules.push(Object.assign({ type: t }, JSON.parse(JSON.stringify(RULES[t].def)))); e.target.value = ''; paintRules(); changed(); } },
+        h('option', { value: '' }, '+ Add a rule…'), Object.entries(RULES).map(([k, v]) => h('option', { value: k }, v.label))),
+        R.rules.length ? h('button', { onclick: () => { R.rules = []; paintRules(); changed(); } }, 'Clear rules') : null,
+        h('span', { class: 'mute small' }, 'Rules run top to bottom. The preview updates as you type.')));
+  }
+  apply.onclick = async () => {
+    const pairs = R.files.filter(f => f.on && f.to !== f.name).map(f => ({ from: f.path, to: dirOf(f.path) + '/' + f.to }));
+    try { const r = await POST('/api/rename', { pairs }); toast(r.renamed + ' file' + (r.renamed === 1 ? '' : 's') + ' renamed'); R.rules = []; S.lib = null; await openRenDir(R.dir); } catch (e) { fail(e); }
+  };
+  async function paintHist() {
+    try { const r = await GET('/api/rename/history');
+      hist.replaceChildren(r.batches.length ? r.batches.slice(0, 12).map(b => h('div', { class: 'rule' }, h('div', { class: 'grow' }, h('b', null, b.count + ' file' + (b.count > 1 ? 's' : '')), ' ', h('span', { class: 'mute small' }, new Date(b.when * 1000).toLocaleString()),
+        h('div', { class: 'mute small' }, b.sample.slice(0, 2).map(p => base(p[0]) + ' → ' + base(p[1])).join(' · '))),
+        b.undone ? h('span', { class: 'mute small' }, 'undone') : h('button', { class: 'small', onclick: async () => { try { await POST('/api/rename/undo', { batch: b.id }); toast('Undone'); S.lib = null; if (R.dir) await openRenDir(R.dir); else paintHist(); } catch (e) { fail(e); } } }, 'Undo'))) : h('p', { class: 'mute small' }, 'Nothing renamed yet.'));
+    } catch (e) {}
+  }
+  m.append(h('div', { class: 'row' }, h('h2', null, 'Bulk Renamer'), h('span', { class: 'small mute grow', style: 'word-break:break-all' }, R.dir || ''),
+      h('button', { onclick: () => pickFolder(openRenDir) }, R.dir ? 'Change folder' : 'Open folder…'),
+      h('select', { onchange: e => { R.sort = e.target.value; renSort(); paintList(); } }, [['name', 'Order: name'], ['date', 'Order: date'], ['size', 'Order: size']].map(([v, l]) => h('option', { value: v, selected: R.sort === v }, l))),
+      h('button', { onclick: () => { R.rev = !R.rev; renSort(); paintList(); } }, 'Reverse')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, h('h3', null, 'Rules'), rules),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, h('div', { class: 'row' }, summary, apply), list,
+      h('p', { class: 'mute small', style: 'margin:0' }, 'All or nothing: if any file cannot be renamed, none are. Nothing is ever overwritten, and every batch can be undone below.')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, h('h3', null, 'History'), hist));
+  paintRules(); paintList(); paintHist();
+}
+
+/* ---------- Network & Cast ---------- */
+const screenUrl = () => (S.info.addrs && S.info.addrs[0] ? 'http://' + S.info.addrs[0] + ':' + S.info.port : location.origin) + '/screen';
+async function loadPeers() { try { S.peers = (await GET('/api/peers')).peers; } catch (e) { S.peers = []; } return S.peers; }
+async function withPin(peer, fn) {
+  try { return await fn(pins[peer.id] || ''); }
+  catch (e) { if (e.status !== 401) throw e; const p = prompt('Enter the PIN shown on "' + peer.name + '" (Network & Cast tab there)'); if (!p) throw new Error('PIN needed'); pins[peer.id] = p.trim(); savePins(); return await fn(pins[peer.id]); }
+}
+const peerTag = p => p.kind === 'browser' ? (p.own ? 'browser screen on this WLC' : 'browser screen · ' + p.ip) : p.ip + ':' + p.port;
+async function castTo(peer, what, move) {
+  const body = Array.isArray(what) ? { paths: what } : { path: what || '' };
+  try { await withPin(peer, pin => POST('/api/cast/send', Object.assign({ peer: peer.id, pin, move: !!move }, body))); toast('Casting ' + (Array.isArray(what) && what.length > 1 ? what.length + ' files ' : '') + 'to ' + peer.name); S.castPeer = peer.id; }
+  catch (e) { if (e.status === 401) { delete pins[peer.id]; savePins(); } fail(e); }
+}
+async function castMenu(path) {
+  await loadPeers();
+  const many = Array.isArray(path);
+  const box = h('div', { class: 'modal', onclick: e => { if (e.target === box) box.remove(); } }, h('div', { class: 'card', style: 'width:min(460px,100%)' },
+    h('h2', null, many ? 'Cast ' + path.length + ' files to…' : path ? 'Cast this file to…' : 'Cast what is playing to…'),
+    S.peers.length ? S.peers.map(p => h('div', { class: 'rule' }, h('div', { class: 'grow' }, h('b', null, (p.kind === 'browser' ? '🖵 ' : '') + p.name), h('div', { class: 'mute small' }, peerTag(p))),
+      h('button', { class: 'primary', onclick: () => { box.remove(); castTo(p, path, false); } }, 'Cast'),
+      path ? null : h('button', { title: 'Continue there from the same spot and stop here', onclick: () => { box.remove(); castTo(p, path, true); } }, 'Move'))) : h('p', { class: 'mute' }, 'Nothing to cast to yet. Start WLC on another computer, or open ' + screenUrl() + ' on a TV, phone or laptop browser to make it a screen.'),
+    h('div', { class: 'row' }, h('span', { class: 'grow' }), h('button', { onclick: () => box.remove() }, 'Close'))));
+  document.body.append(box);
+}
+let netTimer = null;
+function viewNet(m) {
+  const i = S.info, devs = h('div', { class: 'col' });
+  const url = a => 'http://' + a + ':' + i.port + '/';
+  const scr = i.lan && i.addrs && i.addrs.length ? h('div', { class: 'card col' }, h('h3', null, 'Make any screen a cast target'),
+    h('p', { class: 'mute small', style: 'margin:0' }, 'On a smart TV, phone, tablet or spare laptop on this network, open this address in its web browser and enter the PIN. It then shows up as a WilkCast screen for every WLC here.'),
+    i.addrs.map(a => h('div', { style: 'font:600 15px ui-monospace,Menlo,monospace;color:var(--orange2)' }, url(a) + 'screen')),
+    h('p', { class: 'mute small', style: 'margin:0' }, 'Browsers play MP4 (H.264), WebM, MP3, AAC, FLAC and WAV. For other formats cast to a WLC, or convert first.')) : null;
+  const left = h('div', { class: 'card col' }, h('h3', null, 'This WLC'));
+  if (i.local) {
+    const name = h('input', { type: 'text', value: i.name, class: 'grow' });
+    left.append(h('div', { class: 'row' }, h('span', { style: 'width:110px' }, 'Name'), name, h('button', { onclick: () => saveSet({ name: name.value }) }, 'Save')),
+      h('div', { class: 'row' }, h('span', { style: 'width:110px' }, 'PIN'), h('span', { class: 'big-pin' }, i.pin), h('span', { class: 'grow' }), h('button', { onclick: () => { if (confirm('Make a new PIN? Phones and other devices will have to sign in again.')) saveSet({ newPin: true }); } }, 'New PIN')),
+      h('div', null, h('div', { class: 'mute small' }, 'Open this on a phone, tablet or another computer on the same network:'),
+        i.lan ? (i.addrs.length ? i.addrs.map(a => h('div', { style: 'font:600 15px ui-monospace,Menlo,monospace;color:var(--orange2)' }, url(a))) : h('div', { class: 'mute' }, 'No network connection found.')) : h('div', { class: 'mute' }, 'LAN access is switched off.')),
+      h('label', { class: 'row' }, h('input', { type: 'checkbox', checked: i.lan, onchange: e => saveSet({ lan: e.target.checked }).then(() => toast('Restart WLC for this to take effect')) }), 'Let other devices on my network connect (PIN required)'),
+      h('div', { class: 'row' }, h('span', null, 'Casts sent to this WLC'), h('select', { onchange: e => saveSet({ castAccept: e.target.value }) },
+        [['pin', 'need the PIN'], ['open', 'are accepted from anyone on the network'], ['off', 'are refused']].map(([v, l]) => h('option', { value: v, selected: i.castAccept === v }, l)))),
+      h('p', { class: 'mute small', style: 'margin:0' }, 'Other devices can browse and play the folders in your Media Center and use the remote. Converting, renaming and these settings only work on this computer.'));
+  } else left.append(h('p', null, 'Connected to ', h('b', null, i.name), '.'), h('p', { class: 'mute small' }, 'You are using it from another device: you can browse, play, cast and use the EQ. File tools stay on that computer.'));
+  const host = h('input', { type: 'text', placeholder: '192.168.1.20', style: 'width:150px' });
+  const right = h('div', { class: 'card col' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Cast targets on this network (WilkCast)'), h('button', { class: 'small', onclick: paintDevs }, 'Refresh')), devs,
+    h('div', { class: 'row' }, h('span', { class: 'small mute' }, 'Not listed? Add by address'), host, h('button', { onclick: async () => { try { await POST('/api/peers/add', { host: host.value.trim() }); host.value = ''; paintDevs(); } catch (e) { fail(e); } } }, 'Add')));
+  m.append(h('div', { class: 'row' }, h('h2', null, 'Network & Cast')), h('div', { class: 'gap' }), h('div', { class: 'two' }, left, right), scr && i.local ? h('div', { class: 'gap' }) : null, i.local ? scr : null);
+  async function saveSet(b) { try { S.info = await POST('/api/settings', b); $('#who').textContent = S.info.name; render(); } catch (e) { fail(e); } }
+  async function paintDevs() {
+    clearTimeout(netTimer); if (S.tab !== 'net' || !devs.isConnected) return;
+    await loadPeers();
+    const rows = await Promise.all(S.peers.map(async p => { let st = null; if (pins[p.id] != null || p.auth === 'open') { try { st = await GET('/api/cast/status?' + q({ peer: p.id, pin: pins[p.id] || '' })); } catch (e) {} }
+      const ctl = (c, label, extra) => h('button', { class: 'small', onclick: async () => { try { await withPin(p, pin => POST('/api/cast/control', Object.assign({ peer: p.id, pin, cmd: c }, extra))); paintDevs(); } catch (e) { fail(e); } } }, label);
+      return h('div', { class: 'rule' }, h('div', { class: 'grow' }, h('b', null, (p.kind === 'browser' ? '🖵 ' : '') + p.name), ' ', h('span', { class: 'mute small' }, peerTag(p) + (p.auth === 'off' ? ' · not accepting casts' : '')),
+          st ? h('div', { class: 'small ' + (st.state === 'playing' ? 'ok' : st.state === 'error' ? 'bad' : 'mute') }, st.state + (st.title ? ': ' + st.title + ' (' + fmtTime(st.time) + ' / ' + fmtTime(st.length) + ')' : '') + (st.error ? ' · ' + st.error : '')) : null),
+        h('button', { class: 'small primary', onclick: () => castTo(p, null, false).then(paintDevs) }, 'Cast current'), ctl('toggle', 'Play/Pause'), ctl('seekrel', '−10 s', { value: -10 }), ctl('seekrel', '+30 s', { value: 30 }), ctl('stop', 'Stop')); }));
+    devs.replaceChildren(rows.length ? rows : h('p', { class: 'mute' }, 'Looking… other WLCs and browser screens on the same network show up here within a few seconds.'));
+    netTimer = setTimeout(paintDevs, 4000);
+  }
+  paintDevs();
+}
+
+/* ---------- boot ---------- */
+async function refreshInfo() { S.info = await GET('/api/info'); $('#who').textContent = S.info.name + (S.info.local ? '' : ' · remote'); }
+(async function boot() {
+  try { await refreshInfo(); } catch (e) { $('#main').textContent = 'WLC is not answering.'; return; }
+  if (!S.info.authed) return viewLogin();
+  try { S.ui = await GET('/api/ui'); } catch (e) {}
+  paintNav(); render(); poll();
+  window.addEventListener('resize', () => { if (S.tab === 'eq') render(); });
+})();
+</script>
+</body>
+</html>
