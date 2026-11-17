@@ -80,9 +80,11 @@ public final class Discovery {
         }
     }
 
-    /** Ask everyone to announce now (e.g. when the browse screen opens). */
+    /** Ask everyone to announce now (e.g. when the home screen opens). Safe from the UI thread. */
     public void probe() {
-        send(MAGIC + "?");
+        Thread t = new Thread(() -> send(MAGIC + "?"), "wilkcast-probe");
+        t.setDaemon(true);
+        t.start();
     }
 
     /** Announce now (e.g. after a rename). */

@@ -34,7 +34,10 @@ def adb(*a, check_rc=True):
 
 
 def status():
-    code, st = wilkcast.call(dev, 'status', pin=PIN)
+    try:
+        code, st = wilkcast.call(dev, 'status', pin=PIN, timeout=5)
+    except Exception as e:      # the app stopped answering
+        return {'state': 'no answer (%s)' % type(e).__name__}
     return st if code == 200 else {'state': 'http %d' % code}
 
 
@@ -77,7 +80,7 @@ srv, urls = wilkcast.serve_files([clip, song, hevc], '10.0.2.2')
 
 print('Install and start')
 print(adb('install', '-r', '-g', APK).strip()[-200:])
-adb('shell', 'am', 'start', '-n', PKG + '/.MainActivity', '--es', 'test_pin', PIN, '--es', 'test_name', 'CI TV')
+adb('shell', "am start -n %s/.MainActivity --es test_pin %s --es test_name 'CI TV'" % (PKG, PIN))
 time.sleep(4)
 adb('forward', 'tcp:%d' % PORT, 'tcp:48620')
 info = wait(lambda: (lambda r: r[1] if r[0] == 200 else None)(wilkcast.call(dev, 'info')), 30, 1)
@@ -132,11 +135,16 @@ check('the TV is back on the WLC TV home screen', wait(lambda: 'MainActivity' in
 
 print('Settings')
 check('wrong PIN is refused', wilkcast.call(dev, 'status', pin='0000')[0] == 401)
-adb('shell', 'am', 'start', '-n', PKG + '/.MainActivity', '--es', 'test_name', 'Den TV')
+adb('shell', "am start -n %s/.MainActivity --es test_name 'Den TV'" % PKG)
 check('rename shows up for senders', wait(lambda: wilkcast.call(dev, 'info')[1].get('name') == 'Den TV', 6))
+check('the receiver keeps running in the background', 'pid' if adb('shell', 'pidof', PKG).strip() else '')
 
 srv.shutdown()
 print('\n%d passed, %d failed' % (PASS, FAIL))
+log = adb('logcat', '-d', check_rc=False)
+open(os.path.join(os.environ.get('SHOTS', '.'), 'logcat.txt'), 'w').write(log)
 if FAIL:
-    print(adb('logcat', '-d', '-t', '300', check_rc=False)[-20000:])
+    keep = [l for l in log.splitlines() if 'WLC-TV' in l or 'AndroidRuntime' in l or 'FATAL' in l
+            or PKG in l or 'libvlc' in l.lower() or 'ActivityManager' in l]
+    print('\n'.join(keep[-150:]))
 sys.exit(1 if FAIL else 0)
