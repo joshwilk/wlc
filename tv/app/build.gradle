@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'io.github.joshwilk.wlctv'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'io.github.joshwilk.wlctv'
+        minSdk 21          // Fire OS 5 and newer, Android TV 5+
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv('WLC_TV_BUILD') ?: '1')
+        versionName '0.1.0'
+        // Fire TV sticks run 32-bit ARM, newer ones 64-bit; tests add x86_64
+        ndk { abiFilters.addAll((findProperty('abis') ?: 'armeabi-v7a,arm64-v8a').split(',') as List) }
+    }
+
+    signingConfigs {
+        release {
+            // CI decodes the WLC_TV_KEYSTORE secret here so every build can update the last one
+            def ks = file("${rootDir}/wlc-tv.jks")
+            if (ks.exists()) {
+                storeFile ks
+                storePassword System.getenv('WLC_TV_KEY_PASS')
+                keyAlias 'wlctv'
+                keyPassword System.getenv('WLC_TV_KEY_PASS')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig file("${rootDir}/wlc-tv.jks").exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    buildFeatures { buildConfig true }
+    lint { abortOnError false; checkReleaseBuilds false }
+}
+
+dependencies {
+    implementation 'org.videolan.android:libvlc-all:3.7.6'
+}

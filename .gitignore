@@ -53,3 +53,11 @@ build*/
 contrib-*
 install-*
 !extras/package/apple/build.sh
+
+# WLC TV build output and signing key
+tv/.gradle/
+tv/build/
+tv/app/build/
+tv/wlc-tv.jks
+tv/local.properties
+__pycache__/
