@@ -20,7 +20,7 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
 
       - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: '8.11.1' }
+        with: { gradle-version: '8.14.3' }
 
       # Same signing key every build, so updates install over the last one.
       # A WLC_TV_KEYSTORE secret (base64 .jks) wins; otherwise a key kept in the cache.
