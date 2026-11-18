@@ -1,0 +1,49 @@
+# Publishes a finished Mac build at a fixed, no-sign-in link:
+#   https://github.com/joshwilk/wlc/releases/download/wlc-mac/WLC-mac-apple-silicon.dmg
+# Runs by itself after every successful "WLC for macOS" build, or by hand for a given run.
+name: Publish the Mac app
+
+on:
+  workflow_run:
+    workflows: ['WLC for macOS']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: The "WLC for macOS" run to publish
+        required: true
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the DMG from the build
+        uses: actions/download-artifact@v4
+        with:
+          pattern: WLC-*-mac-apple-silicon
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: dl
+      - name: Publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: |
+          dmg=$(find dl -name 'WLC-*.dmg' | head -1)
+          test -n "$dmg" || { echo "no DMG in that run"; exit 1; }
+          version=$(basename "$dmg" | sed -E 's/^WLC-([0-9.]+).*/\1/')
+          cp "$dmg" WLC-mac-apple-silicon.dmg
+          gh release delete wlc-mac --yes --cleanup-tag 2>/dev/null || true
+          gh release create wlc-mac WLC-mac-apple-silicon.dmg --target "$GITHUB_SHA" \
+            --title "WLC $version for Mac (Apple Silicon)" \
+            --notes "Download: https://github.com/joshwilk/wlc/releases/download/wlc-mac/WLC-mac-apple-silicon.dmg
+
+          Open the DMG and drag WLC to Applications. The app is not signed by Apple, so the first time: right-click WLC > Open > Open.
+          New tools are in Window > WLC Control Center (Option-Command-K).
+
+          Built by run $RUN."
