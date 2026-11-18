@@ -300,6 +300,7 @@ static int Open( vlc_object_t *obj )
         return VLC_EGENERIC;
     }
     wlc_jobs_start( sys );
+    wlc_dl_start( sys );
     if( sys->lan )
         wlc_cast_start( sys );
 
@@ -334,6 +335,7 @@ static void Close( vlc_object_t *obj )
     atomic_store( &sys->stop, true );
     wlc_cast_stop( sys );
     wlc_jobs_stop( sys );
+    wlc_dl_stop( sys );
     wlc_http_stop( sys );
     wlc_api_cleanup( sys );
 

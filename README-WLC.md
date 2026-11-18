@@ -9,7 +9,7 @@ network. Its symbol is an orange construction barrel.
 WLC is an independent project. It is not affiliated with or endorsed by
 VideoLAN. "VLC" and "VideoLAN" are trademarks of the VideoLAN Association.
 
-Version 0.2.0 · based on VLC 3.0.25-dev (commit f7ee56b) · GPL-2.0-or-later
+Version 0.3.0 · based on VLC 3.0.25-dev (commit f7ee56b) · GPL-2.0-or-later
 (see `COPYING`) · WLC changes © 2026 Josh Wilk.
 
 ## What is new compared with VLC
@@ -24,6 +24,7 @@ Open **Window ▸ WLC Control Center** (⌥⌘K) on the Mac, or browse to
 | **Converter** | Batch convert with VLC's own engine while you keep watching: MP4/MKV (H.264 + AAC), WebM, MPEG-TS, MP3, AAC, Ogg Vorbis, Opus, FLAC, WAV; size, bitrate, frame rate, sample rate, channels; pull the audio out of videos; advanced custom transcode options; several files at once. Never overwrites: a taken name becomes "name (2)". |
 | **Bulk Renamer** | Rule stack with live preview: replace (plain or regex), remove characters, remove between brackets, strip leading numbers, add text, clean up, change case, number in order, name from tags (`{track:2} - {title}` …), extension case. All-or-nothing, never overwrites, every batch can be undone (history survives restarts). |
 | **LAN server** | Any phone, tablet or computer on your network can open WLC's address, enter the 6-digit PIN and get a remote control, your Media Center, the EQ, and playback right in its browser (with seeking). File tools and settings stay on the computer running WLC. |
+| **Downloads** | Paste a link to a video, song or playlist and WLC downloads it with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (the maintained successor of youtube-dl, thousands of sites). Look it up first to see the title and playlist items; choose video (best/2160p…360p, MP4 or MKV, English subtitles) or audio only (MP3, AAC, Opus, FLAC, WAV); download all of a playlist, some items (1-5,8) or just the one video. A queue shows progress, speed and time left, with cancel. Finished files land in Movies or Music / WLC Downloads (or a folder you pick), show up in the Media Center, and can be played or cast from the queue. **Play now** streams a link straight into WLC without saving it. WLC sets up the official yt-dlp build itself (checked against its published SHA-256 checksums) and updates it with one click. No ffmpeg needed: when it is missing, WLC joins separate video and audio streams and converts audio with its own engine. Only download what you have the right to. This computer only. |
 | **WilkCast** | WLCs on the same network find each other automatically. Cast a file, a whole folder (as a queue) or what is playing, or *Move* playback to another WLC and carry on from the same second; pause, seek, skip and stop it from where you are. |
 | **Browser screens** | Turn any smart TV, phone, tablet or old laptop into a cast target with nothing installed: open `http://<wlc-address>:48620/screen` in its browser and enter the PIN. Every WLC on the network can then cast to it, and its remote controls work. Browsers play MP4 (H.264), WebM, MP3, AAC, FLAC and WAV; anything else is reported back and skipped. |
 | **Open protocol** | WilkCast is tiny and documented in `doc/wilkcast.md` (public domain). `tools-wlc/wilkcast.py` is a second implementation in one Python file with no dependencies: `discover`, `cast` (serves your files itself), `ctl`, `status`, and `receive` (turns any computer with mpv, ffplay or VLC into a receiver). |
@@ -36,7 +37,7 @@ VLC's preferences), and VideoLAN's updater and crash reporter are switched off.
 
 | path | what |
 |---|---|
-| `modules/control/wlc/` | The Control Center interface module: HTTP server and access control (`wlc_http.c`), player/library/renamer/EQ API (`wlc_api.c`), converter (`wlc_jobs.c`), WilkCast and browser screens (`wlc_cast.c`), and the web pages (`ui/index.html`, `ui/screen.html`, embedded as `wlc_ui.h` by `tools-wlc/gen_ui.py`). |
+| `modules/control/wlc/` | The Control Center interface module: HTTP server and access control (`wlc_http.c`), player/library/renamer/EQ API (`wlc_api.c`), converter (`wlc_jobs.c`), downloads with yt-dlp (`wlc_dl.c`), WilkCast and browser screens (`wlc_cast.c`), and the web pages (`ui/index.html`, `ui/screen.html`, embedded as `wlc_ui.h` by `tools-wlc/gen_ui.py`). |
 | `modules/audio_filter/wlceq.c` | Power EQ audio filter. |
 | `src/libvlc.c`, `src/libvlc-module.c` | Start the Control Center with the player (`--no-wlc-control-center` turns it off). |
 | `modules/gui/macosx/` | Renamed strings, the Control Center menu item, About text. |
@@ -69,6 +70,8 @@ Run `./vlc` from the build folder.
 ## Tests
 
     python3 tools-wlc/e2e.py build/vlc            # 124 checks, two live instances
+    python3 tools-wlc/dl_e2e.py build/vlc         # 42 checks: downloads, offline (local web server)
+    python3 tools-wlc/dl_ui_e2e.py build/vlc      # 6 checks: the Downloads tab in Chrome
     python3 tools-wlc/ui_e2e.py http://127.0.0.1:48620 /folder/with/media
     python3 tools-wlc/screen_e2e.py http://<lan-ip>:48620 /folder/with/media   # 16 checks in Chrome
 

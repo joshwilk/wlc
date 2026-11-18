@@ -37,7 +37,7 @@
 
 #include "../../misc/webservices/json.h"
 
-#define WLC_VERSION      "0.2.0"
+#define WLC_VERSION      "0.3.0"
 #define WLC_DEFAULT_PORT 48620
 #define WLC_CAST_PORT    48621
 #define WLC_CAST_GROUP   "239.87.76.67"   /* 'W' 'L' 'C' */
@@ -185,6 +185,14 @@ struct intf_sys_t
     unsigned     npeers;
     wlc_screen_t screens[WLC_MAX_SCREENS];
     unsigned     nscreens;
+
+    /* downloader */
+    struct wlc_dl **dls;
+    size_t       ndls;
+    int          dl_seq;
+    vlc_thread_t dl_thread;
+    bool         dl_thread_ok;
+    char        *dl_installing;   /* non-NULL while yt-dlp is being set up */
 };
 
 typedef struct
@@ -275,6 +283,26 @@ void wlc_h_cast_send( wlc_req_t * );
 void wlc_h_cast_control( wlc_req_t * );
 void wlc_h_cast_peer_status( wlc_req_t * );
 void wlc_h_castv1( wlc_req_t *, const char *what );
+
+/* wlc_jobs.c helpers shared with the downloader */
+char *wlc_free_name( const char *dir, const char *base, const char *ext );
+bool  wlc_profile_recipe( const char *id, int ab, char **chain,
+                          const char **mux, const char **ext, bool *audio_only );
+int   wlc_run_sout( intf_sys_t *, const char *src, const char *slave,
+                    const char *chain, const char *mux, const char *dst,
+                    bool audio_only, atomic_bool *cancel, float *progress );
+
+/* wlc_dl.c: downloads with yt-dlp (this computer only) */
+int  wlc_dl_start( intf_sys_t * );
+void wlc_dl_stop( intf_sys_t * );
+void wlc_h_dl_tool( wlc_req_t * );
+void wlc_h_dl_install( wlc_req_t * );
+void wlc_h_dl_probe( wlc_req_t * );
+void wlc_h_dl_add( wlc_req_t * );
+void wlc_h_dl_jobs( wlc_req_t * );
+void wlc_h_dl_cancel( wlc_req_t * );
+void wlc_h_dl_clear( wlc_req_t * );
+void wlc_h_dl_play( wlc_req_t * );
 void wlc_h_screen_register( wlc_req_t * );
 void wlc_h_screen_sync( wlc_req_t * );
 void wlc_screens_free( intf_sys_t * );

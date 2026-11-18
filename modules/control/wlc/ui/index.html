@@ -18,7 +18,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 button.primary{background:var(--orange);border-color:var(--orange);color:#160a00;font-weight:700}
 button.ghost{background:transparent}
 button.small{padding:3px 8px;font-size:12px}
-input[type=text],input[type=number],input[type=password],input[type=search],select{background:#111316;border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+input[type=text],input[type=url],input[type=number],input[type=password],input[type=search],select{background:#111316;border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
 input:focus,select:focus,button:focus-visible{outline:2px solid var(--orange2);outline-offset:1px}
 input[type=range]{accent-color:var(--orange)}
 input[type=checkbox]{accent-color:var(--orange);width:16px;height:16px}
@@ -170,6 +170,7 @@ const dirOf = p => p.slice(0, p.lastIndexOf('/')) || '/';
 const natCmp = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }).compare;
 const ICON = {
   play: 'M7 4v16l13-8z', lib: 'M4 4h6v16H4zM12 4h4v16h-4zM18 6l3 .8-3.2 13-3-.8z', eq: 'M5 4h2v7H5zM5 15h2v5H5zM3 11h6v4H3zM11 4h2v3h-2zM11 11h2v9h-2zM9 7h6v4H9zM17 4h2v9h-2zM17 17h2v3h-2zM15 13h6v4h-6z',
+  dl: 'M11 3h2v9.2l3.6-3.6L18 10l-6 6-6-6 1.4-1.4L11 12.2zM4 18h16v2H4z',
   conv: 'M4 7h11l-3-3 1.4-1.4L19.8 8l-6.4 5.4L12 12l3-3H4zM20 17H9l3 3-1.4 1.4L4.2 16l6.4-5.4L12 12l-3 3h11z', ren: 'M3 17.2V21h3.8L18 9.8 14.2 6zM20.7 7a1 1 0 000-1.4l-2.3-2.3a1 1 0 00-1.4 0L15.2 5 19 8.8z',
   net: 'M3 18a3 3 0 013 3H3zM3 14a7 7 0 017 7H8a5 5 0 00-5-5zM3 10a11 11 0 0111 11h-2a9 9 0 00-9-9zM3 5h18v14h-5v-2h3V7H5v1H3z',
   folder: 'M3 6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z', note: 'M9 4v11.2A3.5 3.5 0 1011 18V8h7V4z', film: 'M4 4h16v16H4zM6 6v2h2V6zm0 5v2h2v-2zm0 5v2h2v-2zm10-10v2h2V6zm0 5v2h2v-2zm0 5v2h2v-2z', img: 'M4 5h16v14H4zm2 12h12l-4-6-3 4-2-2z'
@@ -178,7 +179,7 @@ const icon = (n) => h('span', { html: '<svg viewBox="0 0 24 24" fill="currentCol
 
 /* ---------- state ---------- */
 const S = { info: null, st: null, tab: 'now', lib: null, libKind: 'all', libQ: '', libFolder: null, ui: {}, seeking: false,
-  eq: null, conv: { files: [] }, ren: { dir: null, files: [], rules: [], sort: 'name', meta: {} }, peers: [] };
+  eq: null, conv: { files: [] }, dl: null, ren: { dir: null, files: [], rules: [], sort: 'name', meta: {} }, peers: [] };
 const pins = JSON.parse(localStorage.getItem('wlc-pins') || '{}');
 const savePins = () => localStorage.setItem('wlc-pins', JSON.stringify(pins));
 
@@ -207,7 +208,7 @@ async function poll() {
 
 /* ---------- navigation ---------- */
 const TABS = [['now', 'Now Playing', 'play'], ['lib', 'Media Center', 'lib'], ['eq', 'Power EQ', 'eq'],
-  ['conv', 'Converter', 'conv', true], ['ren', 'Bulk Renamer', 'ren', true], ['net', 'Network & Cast', 'net']];
+  ['dl', 'Downloads', 'dl', true], ['conv', 'Converter', 'conv', true], ['ren', 'Bulk Renamer', 'ren', true], ['net', 'Network & Cast', 'net']];
 function paintNav() {
   const nav = $('#nav'); nav.replaceChildren();
   for (const [id, label, ic, localOnly] of TABS) {
@@ -218,7 +219,7 @@ function paintNav() {
 function go(tab) { S.tab = tab; paintNav(); render(); }
 function render() {
   const m = $('#main'); m.replaceChildren();
-  ({ now: viewNow, lib: viewLib, eq: viewEq, conv: viewConv, ren: viewRen, net: viewNet })[S.tab](m);
+  ({ now: viewNow, lib: viewLib, eq: viewEq, dl: viewDl, conv: viewConv, ren: viewRen, net: viewNet })[S.tab](m);
 }
 
 /* ---------- login (other devices) ---------- */
@@ -531,6 +532,121 @@ async function viewConv(m) {
     } catch (e) {}
   }
   paintFiles(); paintOpts(); pollJobs();
+}
+
+/* ---------- Downloads (yt-dlp) ---------- */
+let dlTimer = null;
+function dlState() {
+  if (!S.dl) { let saved = {}; try { saved = JSON.parse(localStorage.getItem('wlc-dl') || '{}'); } catch (e) {}
+    S.dl = Object.assign({ mode: 'video', vq: '1080', vf: 'mp4', aq: 'best', af: 'mp3', subs: false, where: 'default', dir: '', lib: true }, saved, { url: '', info: null, scope: 'all', items: '' }); }
+  return S.dl;
+}
+function dlSave() { const d = S.dl; try { localStorage.setItem('wlc-dl', JSON.stringify({ mode: d.mode, vq: d.vq, vf: d.vf, aq: d.aq, af: d.af, subs: d.subs, where: d.where, dir: d.dir, lib: d.lib })); } catch (e) {} }
+const speedTxt = b => b > 0 ? (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB/s' : Math.round(b / 1024) + ' KB/s') : '';
+async function viewDl(m) {
+  const d = dlState();
+  let tool = null;
+  try { tool = await GET('/api/dl/tool'); } catch (e) { fail(e); return; }
+  if (S.tab !== 'dl') return;
+  const head = h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Downloads'),
+    tool.ytdlp ? h('span', { class: 'small mute' }, 'yt-dlp ' + (tool.version || '') + (tool.ffmpeg ? ' · ffmpeg found' : '')) : null,
+    tool.installable ? h('button', { class: 'small', onclick: () => setup(tool.ytdlp ? 'Updating' : 'Setting up') }, tool.ytdlp ? (tool.own ? 'Update yt-dlp' : 'Use WLC\'s own yt-dlp') : 'Set up yt-dlp') : null);
+  async function setup(what) {
+    toast(what + ' yt-dlp… (about 35 MB, checked against its official checksum)');
+    try { await POST('/api/dl/install', {}); toast('yt-dlp is ready'); render(); } catch (e) { fail(e); }
+  }
+  m.append(head, h('div', { class: 'gap' }));
+  if (!tool.ytdlp) {
+    m.append(h('div', { class: 'card col' }, h('h3', null, 'One-time setup'),
+      h('p', { class: 'mute', style: 'margin:0' }, 'Downloads use yt-dlp, the maintained successor of youtube-dl, which supports thousands of sites. WLC fetches the official build from its GitHub releases, checks it against the published checksum, and keeps it in WLC\'s own folder. Nothing else on your computer changes.'),
+      h('div', { class: 'row' }, tool.installable ? h('button', { class: 'primary', onclick: () => setup('Setting up') }, 'Set up yt-dlp') : h('span', { class: 'err' }, 'Install yt-dlp yourself on this system, then reopen this tab.'))));
+    return;
+  }
+
+  /* --- the link and what is at it --- */
+  const url = h('input', { type: 'url', class: 'grow', placeholder: 'Paste a link to a video, song or playlist', value: d.url,
+    oninput: e => { d.url = e.target.value.trim(); }, onkeydown: e => { if (e.key === 'Enter') lookUp(); } });
+  const info = h('div', { class: 'col' }), opts = h('div', { class: 'col' });
+  async function lookUp() {
+    if (!/^https?:\/\//i.test(d.url)) return toast('Paste a link that starts with http:// or https://', true);
+    info.replaceChildren(h('p', { class: 'mute' }, 'Looking it up…')); d.info = null;
+    try { d.info = await POST('/api/dl/probe', { url: d.url }); d.scope = d.info.playlist ? 'all' : 'one'; d.items = ''; }
+    catch (e) { info.replaceChildren(h('p', { class: 'err' }, e.message)); return; }
+    paintInfo(); paintOpts();
+  }
+  function paintInfo() {
+    const i = d.info; if (!i) { info.replaceChildren(); return; }
+    const meta = [i.uploader || i.channel, i.duration ? fmtTime(i.duration) : null, i.playlist ? i.count + ' items' : null, i.extractor_key].filter(Boolean).join(' · ');
+    const list = i.playlist && i.entries.length ? h('div', { class: 'scroll', style: 'max-height:24vh' }, h('table', null, i.entries.slice(0, 300).map(e =>
+      h('tr', null, h('td', { class: 'mute', style: 'width:44px' }, e.i), h('td', { class: 'name' }, e.title), h('td', { class: 'mute', style: 'width:70px' }, e.duration ? fmtTime(e.duration) : ''))))) : null;
+    info.replaceChildren(h('div', { class: 'row', style: 'align-items:flex-start' },
+      i.thumbnail ? h('img', { src: i.thumbnail, referrerpolicy: 'no-referrer', style: 'width:160px;max-height:100px;object-fit:cover;border-radius:8px;background:#000', onerror: e => e.target.remove() }) : null,
+      h('div', { class: 'grow col', style: 'gap:4px' }, h('b', null, i.title || d.url), h('span', { class: 'mute small' }, meta))), list);
+  }
+  const seg = (key, choices, after) => h('div', { class: 'seg' }, choices.map(([v, l]) => h('button', { class: d[key] === v ? 'on' : '', onclick: () => { d[key] = v; dlSave(); paintOpts(); if (after) after(); } }, l)));
+  const select = (key, choices, disabled) => h('select', { disabled: !!disabled, onchange: e => { d[key] = e.target.value; dlSave(); paintOpts(); } }, choices.map(([v, l]) => h('option', { value: v, selected: d[key] === v }, l)));
+  function paintOpts() {
+    const i = d.info, have = i && i.heights ? i.heights : [];
+    const vqs = [['best', 'Best available'], ...[2160, 1440, 1080, 720, 480, 360].map(x => [String(x), x + 'p' + (have.length && !have.includes(x) ? ' (not offered)' : '')])];
+    const lossless = d.af === 'flac' || d.af === 'wav';
+    const rows = [h('div', { class: 'row' }, h('b', null, 'Get'), seg('mode', [['video', 'Video'], ['audio', 'Audio only']]),
+      d.mode === 'video' ? [h('label', { class: 'small mute' }, 'Quality ', select('vq', vqs)),
+          h('label', { class: 'small mute' }, 'Format ', select('vf', [['mp4', 'MP4 (plays everywhere)'], ['mkv', 'MKV (best quality, any codec)']])),
+          h('label', { class: 'small mute' }, h('input', { type: 'checkbox', checked: d.subs, onchange: e => { d.subs = e.target.checked; dlSave(); } }), ' English subtitles')]
+        : [h('label', { class: 'small mute' }, 'Format ', select('af', [['mp3', 'MP3'], ['m4a', 'AAC (.m4a)'], ['opus', 'Opus'], ['flac', 'FLAC (lossless)'], ['wav', 'WAV']])),
+          h('label', { class: 'small mute' }, 'Quality ', select('aq', [['best', 'Best'], ['320', '320 kbps'], ['256', '256 kbps'], ['192', '192 kbps'], ['128', '128 kbps']], lossless))])];
+    if (i && i.playlist) rows.push(h('div', { class: 'row' }, h('b', null, 'Playlist'), seg('scope', [['all', 'All ' + i.count], ['some', 'Only some'], ['one', 'Just the video in the link']]),
+      d.scope === 'some' ? h('input', { type: 'text', placeholder: 'e.g. 1-5,8,10', value: d.items, style: 'width:140px', oninput: e => { d.items = e.target.value; } }) : null));
+    const dirLabel = h('span', { class: 'small mute' }, d.where === 'pick' ? d.dir : (d.mode === 'audio' ? tool.audioDir : tool.videoDir));
+    rows.push(h('div', { class: 'row' }, h('b', null, 'Save to'),
+      h('select', { onchange: e => { d.where = e.target.value; if (d.where === 'pick') pickFolder(p => { d.dir = p; dlSave(); paintOpts(); }); dlSave(); paintOpts(); } },
+        h('option', { value: 'default', selected: d.where !== 'pick' }, (d.mode === 'audio' ? 'Music' : 'Movies') + ' / WLC Downloads'), h('option', { value: 'pick', selected: d.where === 'pick' }, 'A folder I choose…')), dirLabel,
+      h('span', { class: 'grow' }), h('label', { class: 'small mute' }, h('input', { type: 'checkbox', checked: d.lib, onchange: e => { d.lib = e.target.checked; dlSave(); } }), ' Show in Media Center'),
+      h('button', { class: 'primary', onclick: start }, 'Download')));
+    opts.replaceChildren(...rows);
+  }
+  async function start() {
+    if (!/^https?:\/\//i.test(d.url)) return toast('Paste a link first', true);
+    if (d.where === 'pick' && !d.dir) return toast('Choose the folder to save into', true);
+    const audio = d.mode === 'audio';
+    const body = { url: d.url, mode: d.mode, quality: audio ? d.aq : d.vq, format: audio ? d.af : d.vf, subs: !audio && d.subs,
+      playlist: !!(d.info && d.info.playlist && d.scope !== 'one'), items: d.info && d.info.playlist && d.scope === 'some' ? d.items : '',
+      dir: d.where === 'pick' ? d.dir : '', addToLibrary: d.lib, title: d.info ? d.info.title || '' : '' };
+    try { await POST('/api/dl/add', body); toast('Added to downloads'); d.url = ''; d.info = null; url.value = ''; paintInfo(); paintOpts(); pollDl(); } catch (e) { fail(e); }
+  }
+  const jobs = h('div', { class: 'col' });
+  m.append(h('div', { class: 'card col' },
+      h('div', { class: 'row' }, url, h('button', { onclick: lookUp }, 'Look up'),
+        h('button', { title: 'Stream it in WLC now, without saving a file', onclick: async () => {
+          if (!/^https?:\/\//i.test(d.url)) return toast('Paste a link first', true);
+          toast('Opening the stream…');
+          try { await POST('/api/dl/play', { url: d.url, audio: d.mode === 'audio' }); toast('Playing in WLC'); } catch (e) { fail(e); } } }, '▶ Play now')),
+      info, opts,
+      h('p', { class: 'mute small', style: 'margin:0' }, 'Only download what you have the right to: some sites\' terms or copyright don\'t allow it. ',
+        tool.ffmpeg ? 'Thumbnails and details are embedded with ffmpeg.' : 'No ffmpeg on this computer, so WLC joins video and sound and converts audio with its own engine (cover art isn\'t embedded).',
+        ' Files are never overwritten.')),
+    h('div', { class: 'gap' }), h('div', { class: 'card col' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Queue'),
+      h('button', { class: 'small', onclick: () => POST('/api/dl/clear', {}).then(pollDl).catch(fail) }, 'Clear finished')), jobs));
+  async function pollDl() {
+    clearTimeout(dlTimer); if (S.tab !== 'dl' || !jobs.isConnected) return;
+    try { const r = await GET('/api/dl/jobs');
+      jobs.replaceChildren(r.jobs.length ? h('table', null, r.jobs.map(j => {
+        const busy = j.state === 'downloading' || j.state === 'processing' || j.state === 'queued';
+        const what = (j.mode === 'audio' ? 'Audio ' : 'Video ') + j.format.toUpperCase() + (j.quality !== 'best' ? ' · ' + j.quality + (j.mode === 'audio' ? ' kbps' : 'p') : '');
+        const detail = j.state === 'done' ? j.files.length + ' file' + (j.files.length === 1 ? '' : 's') + ' in ' + j.dir + (j.msg ? ' · ' + j.msg : '')
+          : j.state === 'error' ? j.msg || 'error' : [what, j.items > 1 ? 'item ' + j.item + ' of ' + j.items : null, j.current && j.current !== j.title ? j.current : null].filter(Boolean).join(' · ');
+        return h('tr', null, h('td', { class: 'name' }, j.title || j.current || j.url, h('div', { class: 'small ' + (j.state === 'error' ? 'err' : 'mute') }, detail)),
+          h('td', { style: 'width:170px' }, busy && j.state !== 'queued' ? h('div', { class: 'col', style: 'gap:2px' }, h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.round(j.progress * 100) + '%' })),
+              h('span', { class: 'small mute' }, j.state === 'processing' ? 'joining / converting…' : [Math.round(j.progress * 100) + '%', speedTxt(j.speed), j.eta > 0 ? fmtTime(j.eta) + ' left' : ''].filter(Boolean).join(' · ')))
+            : h('span', { class: j.state === 'done' ? 'ok' : j.state === 'error' ? 'err' : 'mute' }, j.state)),
+          h('td', { style: 'width:190px;text-align:right' }, busy ? h('button', { class: 'small', onclick: () => POST('/api/dl/cancel', { id: j.id }).then(pollDl).catch(fail) }, 'Cancel')
+            : j.state === 'done' && j.files.length ? [h('button', { class: 'small', onclick: async () => { await cmd('clear'); await cmd('add', { paths: j.files.slice(0, 500), play: true }); toast('Playing'); } }, 'Play'),
+                h('button', { class: 'small', onclick: () => castMenu(j.files.length === 1 ? j.files[0] : j.files.slice(0, 500)) }, 'Cast')] : ''));
+      })) : h('p', { class: 'mute' }, 'Nothing downloaded yet.'));
+      if (r.jobs.some(j => j.state === 'downloading' || j.state === 'processing' || j.state === 'queued')) dlTimer = setTimeout(pollDl, 800);
+    } catch (e) {}
+  }
+  paintInfo(); paintOpts(); pollDl();
 }
 
 /* ---------- Bulk Renamer ---------- */

@@ -92,7 +92,7 @@ static bool exists( const char *path )
 }
 
 /* dir/base.ext, or "base (2).ext" and so on when that name is taken */
-static char *free_name( const char *dir, const char *base, const char *ext )
+char *wlc_free_name( const char *dir, const char *base, const char *ext )
 {
     for( int i = 1; i < 1000; i++ )
     {
@@ -177,7 +177,7 @@ static void job_finish( intf_sys_t *sys, wlc_job_t *job, int state )
             if( dot != NULL )
             {
                 *dot = '\0';
-                final = free_name( dir, base, dot + 1 );
+                final = wlc_free_name( dir, base, dot + 1 );
             }
         }
         if( final != NULL && !vlc_rename( job->part, final ) )
@@ -481,4 +481,108 @@ void wlc_h_jobs_cancel( wlc_req_t *req )
     }
     vlc_mutex_unlock( &sys->lock );
     wlc_ok( req );
+}
+
+/*****************************************************************************
+ * Helpers for the downloader: a profile's default recipe, and running VLC's
+ * engine on one file (optionally with a second file joined in) to the end.
+ *****************************************************************************/
+bool wlc_profile_recipe( const char *id, int ab, char **chain,
+                         const char **mux, const char **ext, bool *audio_only )
+{
+    const wlc_profile_t *p = NULL;
+    for( size_t i = 0; id != NULL && i < ARRAY_SIZE(profiles); i++ )
+        if( !strcmp( profiles[i].id, id ) )
+            p = &profiles[i];
+    if( p == NULL )
+        return false;
+    struct vlc_memstream cs;
+    vlc_memstream_open( &cs );
+    vlc_memstream_puts( &cs, "transcode{" );
+    if( p->vcodec != NULL )
+        vlc_memstream_printf( &cs, "vcodec=%s,vb=%d,", p->vcodec, p->vb );
+    else
+        vlc_memstream_puts( &cs, "vcodec=none," );
+    vlc_memstream_printf( &cs, "acodec=%s", p->acodec );
+    if( ab <= 0 )
+        ab = p->ab;
+    if( ab > 0 )
+        vlc_memstream_printf( &cs, ",ab=%d", ab );
+    if( p->samplerate > 0 )
+        vlc_memstream_printf( &cs, ",samplerate=%d", p->samplerate );
+    vlc_memstream_puts( &cs, ",scodec=none}" );
+    if( vlc_memstream_close( &cs ) )
+        return false;
+    *chain = cs.ptr;
+    *mux = p->mux;
+    *ext = p->ext;
+    *audio_only = p->vcodec == NULL;
+    return true;
+}
+
+int wlc_run_sout( intf_sys_t *sys, const char *src, const char *slave,
+                  const char *chain, const char *mux, const char *dst,
+                  bool audio_only, atomic_bool *cancel, float *progress )
+{
+    char *uri = vlc_path2uri( src, NULL );
+    char *esc = config_StringEscape( dst );
+    char *sout = NULL, *slv = NULL;
+    input_item_t *item = uri ? input_item_New( uri, NULL ) : NULL;
+    int ret = -1;
+
+    if( item == NULL || esc == NULL
+     || asprintf( &sout, "sout=#%s%sstd{access=file,mux=%s,dst='%s'}",
+                  chain, chain[0] ? ":" : "", mux, esc ) < 0 )
+        goto out;
+    input_item_AddOption( item, sout, VLC_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( item, "no-interact", VLC_INPUT_OPTION_TRUSTED );
+    input_item_AddOption( item, "no-sub-autodetect-file", VLC_INPUT_OPTION_TRUSTED );
+    if( slave != NULL )
+    {   /* join a second file (the audio of a split download) */
+        char *suri = vlc_path2uri( slave, NULL );
+        if( suri == NULL || asprintf( &slv, "input-slave=%s", suri ) < 0 )
+            slv = NULL;
+        free( suri );
+        if( slv == NULL )
+            goto out;
+        input_item_AddOption( item, slv, VLC_INPUT_OPTION_TRUSTED );
+        input_item_AddOption( item, "sout-all", VLC_INPUT_OPTION_TRUSTED );
+    }
+    else
+        input_item_AddOption( item, "no-sout-all", VLC_INPUT_OPTION_TRUSTED );
+    if( audio_only )
+        input_item_AddOption( item, "no-video", VLC_INPUT_OPTION_TRUSTED );
+
+    input_thread_t *in = input_Create( VLC_OBJECT(sys->intf), item, NULL, NULL, NULL );
+    if( in == NULL )
+        goto out;
+    if( input_Start( in ) == VLC_SUCCESS )
+    {
+        for( ;; )
+        {
+            msleep( 250000 );
+            const int st = var_GetInteger( in, "state" );
+            if( progress != NULL )
+                *progress = var_GetFloat( in, "position" );
+            if( atomic_load( cancel ) || atomic_load( &sys->stop ) )
+                break;
+            if( st == ERROR_S )
+                break;
+            if( st == END_S )
+            {
+                ret = 0;
+                break;
+            }
+        }
+        input_Stop( in );
+    }
+    input_Close( in );
+    struct stat st;
+    if( ret == 0 && (vlc_stat( dst, &st ) || st.st_size < 64) )
+        ret = -1;
+out:
+    if( item != NULL )
+        input_item_Release( item );
+    free( slv ); free( sout ); free( esc ); free( uri );
+    return ret;
 }

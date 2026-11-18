@@ -13,7 +13,7 @@ on:
     tags: ['wlc-*']
 
 env:
-  WLC_VERSION: "0.2.0"
+  WLC_VERSION: "0.3.0"
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build tools from Homebrew
-        run: brew install autoconf automake libtool pkg-config gettext ffmpeg make zstd || true
+        run: brew install autoconf automake libtool pkg-config gettext ffmpeg make zstd yt-dlp || true
 
       - name: Reuse third-party libraries built by an earlier run
         id: contribcache
@@ -112,6 +112,11 @@ jobs:
         run: |
           python3 tools-wlc/e2e.py "$PWD/build/VLC.app/Contents/MacOS/VLC" 2>&1 | tee build/e2e-mac.txt
 
+      - name: Downloads (yt-dlp) tests against the Mac build
+        continue-on-error: true
+        run: |
+          python3 tools-wlc/dl_e2e.py "$PWD/build/VLC.app/Contents/MacOS/VLC" 2>&1 | tee build/dl-e2e-mac.txt
+
       - name: Show crash reports, if any
         if: always()
         continue-on-error: true
@@ -153,3 +158,4 @@ jobs:
           path: |
             build/WLC-*.dmg
             build/e2e-mac.txt
+            build/dl-e2e-mac.txt

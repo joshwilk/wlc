@@ -713,6 +713,7 @@ static void route( wlc_req_t *req )
     {
         wlc_send( req, 200, "text/html; charset=utf-8",
             "Content-Security-Policy: default-src 'self' 'unsafe-inline' data: blob:; "
+            "img-src 'self' data: blob: https:; "   /* thumbnails in Downloads */
             "frame-ancestors 'none'\r\n", wlc_ui_html, wlc_ui_html_len );
         return;
     }
@@ -825,6 +826,14 @@ static void route( wlc_req_t *req )
         return;
     }
     if( IS( "POST", "/api/roots" ) )           { wlc_h_roots( req ); return; }
+    if( get && !strcmp( req->path, "/api/dl/tool" ) )  { wlc_h_dl_tool( req ); return; }
+    if( IS( "POST", "/api/dl/install" ) )      { wlc_h_dl_install( req ); return; }
+    if( IS( "POST", "/api/dl/probe" ) )        { wlc_h_dl_probe( req ); return; }
+    if( IS( "POST", "/api/dl/add" ) )          { wlc_h_dl_add( req ); return; }
+    if( get && !strcmp( req->path, "/api/dl/jobs" ) )  { wlc_h_dl_jobs( req ); return; }
+    if( IS( "POST", "/api/dl/cancel" ) )       { wlc_h_dl_cancel( req ); return; }
+    if( IS( "POST", "/api/dl/clear" ) )        { wlc_h_dl_clear( req ); return; }
+    if( IS( "POST", "/api/dl/play" ) )         { wlc_h_dl_play( req ); return; }
     if( IS( "POST", "/api/rename" ) )          { wlc_h_rename( req ); return; }
     if( IS( "POST", "/api/rename/undo" ) )     { wlc_h_rename_undo( req ); return; }
     if( get && !strcmp( req->path, "/api/rename/history" ) ) { wlc_h_rename_history( req ); return; }

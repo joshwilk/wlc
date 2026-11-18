@@ -11,7 +11,7 @@ liboldrc_plugin_la_LIBADD = $(SOCKET_LIBS) $(LIBM)
 
 libwlc_plugin_la_SOURCES = control/wlc/wlc.c control/wlc/wlc.h \
 	control/wlc/wlc_http.c control/wlc/wlc_api.c control/wlc/wlc_jobs.c \
-	control/wlc/wlc_cast.c control/wlc/wlc_ui.h \
+	control/wlc/wlc_cast.c control/wlc/wlc_dl.c control/wlc/wlc_ui.h \
 	misc/webservices/json.c misc/webservices/json.h
 libwlc_plugin_la_LIBADD = $(SOCKET_LIBS) $(LIBM)
 
