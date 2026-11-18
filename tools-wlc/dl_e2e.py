@@ -231,7 +231,7 @@ try:
     print('Playlists')
     jid = add(A, url=WEB + '/feed.xml', mode='audio', quality='best', format='mp3', dir=out, playlist=True, items='1,3')
     j = wait_job(A, jid)
-    names = sorted(os.path.relpath(x, out) for x in j.get('files', []))
+    names = sorted(os.path.relpath(x, os.path.realpath(out)) for x in j.get('files', []))   # macOS: /var -> /private/var
     check('only the chosen items (1 and 3), in a folder named after the playlist', j.get('state') == 'done'
           and names == ['Test Show/1 - Episode 1.mp3', 'Test Show/3 - Episode 3.mp3'], (j, names))
     check('progress said which item it was on', j.get('items') == 3 or j.get('item') in (1, 3), j)
